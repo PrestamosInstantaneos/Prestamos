@@ -15,7 +15,7 @@ const poppins = Poppins({
 })
 
 export const metadata: Metadata = {
-  title: 'CrediFast — Préstamos rápidos en línea',
+  title: 'ResuelveYa! — Préstamos rápidos en línea',
   description:
     'Solicita tu préstamo personal en minutos. Tasas competitivas, aprobación rápida y desembolso inmediato.',
   generator: 'v0.app',
