@@ -308,7 +308,7 @@ export default function LoginPage() {
         <div className="flex items-center gap-2">
           <CunaguaroLogo className="h-8 w-8" />
           <span className="font-heading text-lg font-bold tracking-tight text-foreground">
-            RESUELVE<span className="text-primary">YA!</span>
+            RESUELVE<span className="text-primary font-extrabold text-[1.05em] inline-block ml-[0.03em] origin-left">YA!</span>
           </span>
         </div>
       </div>
