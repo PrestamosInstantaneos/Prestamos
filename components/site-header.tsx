@@ -3,31 +3,7 @@
 import { useState, useEffect } from "react"
 import { Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-function CunaguaroLogo({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 100 100"
-      fill="currentColor"
-      className={className}
-    >
-      <polygon points="15,45 25,15 42,35" />
-      <polygon points="85,45 75,15 58,35" />
-      <polygon points="42,35 50,28 58,35 70,55 50,85 30,55" />
-      <polygon points="48,30 52,30 50,45" opacity="0.3" fill="#000" />
-      <polygon points="38,36 41,36 39,45" opacity="0.3" fill="#000" />
-      <polygon points="62,36 59,36 61,45" opacity="0.3" fill="#000" />
-      <polygon points="37,48 45,46 41,52" className="text-primary" fill="currentColor" />
-      <polygon points="63,48 55,46 59,52" className="text-primary" fill="currentColor" />
-      <polygon points="46,65 54,65 50,71" />
-      <circle cx="38" cy="62" r="1.5" />
-      <circle cx="34" cy="64" r="1.5" />
-      <circle cx="62" cy="62" r="1.5" />
-      <circle cx="66" cy="64" r="1.5" />
-    </svg>
-  )
-}
+import { CunaguaroLogo } from "./cunaguaro-logo"
 
 const navLinks = [
   { label: "INICIO", href: "#inicio" },
@@ -77,9 +53,7 @@ export function SiteHeader() {
     <header className="absolute inset-x-0 top-0 z-50">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 sm:py-6 lg:px-10">
         <a href="#inicio" className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary p-1.5">
-            <CunaguaroLogo className="h-full w-full text-primary-foreground" />
-          </span>
+          <CunaguaroLogo className="h-9 w-9" />
           <span className="font-heading text-xl font-bold tracking-tight text-foreground">
             RESUELVE<span className="text-primary">YA!</span>
           </span>
