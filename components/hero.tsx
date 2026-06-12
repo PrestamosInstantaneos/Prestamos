@@ -53,7 +53,7 @@ export function Hero() {
               <>
                 ¡Bienvenido,
                 <br />
-                <span className="text-primary">{user.nombres.split(" ")[0]} {user.apellidos.split(" ")[0]}</span>!
+                <span className="text-[#ea580c] font-black drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)]">{user.nombres.split(" ")[0]} {user.apellidos.split(" ")[0]}</span>!
               </>
             ) : (
               <>
