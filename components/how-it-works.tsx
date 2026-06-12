@@ -4,6 +4,7 @@ const steps = [
   {
     number: "01",
     icon: FileText,
+    image: "/images/step-1.png",
     title: "Completa la solicitud",
     desc: "Llena el formulario en línea en menos de 5 minutos. Solo necesitas tus datos básicos.",
     actionText: "COMENZAR",
@@ -12,6 +13,7 @@ const steps = [
   {
     number: "02",
     icon: BadgeCheck,
+    image: "/images/step-2.png",
     title: "Aprobación veloz",
     desc: "Analizamos tu solicitud al instante y te damos una respuesta sin esperas innecesarias.",
     actionText: "VERIFICAR",
@@ -20,9 +22,10 @@ const steps = [
   {
     number: "03",
     icon: Wallet,
+    image: "/images/step-3.png",
     title: "Recibe tu dinero",
     desc: "Una vez aprobado, transferimos el monto directamente a tu cuenta bancaria.",
-    actionText: "SIMULAR CUOTA",
+    actionText: "SIMULAR",
     actionHref: "#simulador"
   },
 ]
@@ -40,35 +43,49 @@ export function HowItWorks() {
           </h2>
         </div>
 
-        <div className="mt-8 md:mt-14 grid gap-6 md:grid-cols-3">
+        {/* Desplazamiento horizontal en móviles (deslizar a un lado) y grilla en pantallas grandes */}
+        <div className="mt-8 md:mt-14 flex overflow-x-auto md:grid md:grid-cols-3 gap-6 pb-6 md:pb-0 snap-x snap-mandatory scrollbar-none scroll-smooth max-w-full">
           {steps.map((step) => (
             <div
               key={step.title}
-              className="group relative rounded-2xl border border-border/80 bg-card/20 backdrop-blur-md p-6 sm:p-8 transition-all duration-300 hover:border-primary/50 hover:bg-card/40 flex flex-col justify-between"
+              className="w-[280px] shrink-0 snap-center md:w-auto md:shrink group relative rounded-2xl border border-border/80 bg-card/20 backdrop-blur-md p-6 sm:p-8 transition-all duration-500 hover:scale-[1.03] hover:-translate-y-1 hover:border-primary/50 hover:bg-card/40 flex flex-col justify-between min-h-[420px] aspect-[3/4.2] shadow-xl hover:shadow-2xl hover:shadow-primary/5"
             >
               <div>
-                <div className="flex items-center justify-between mb-6">
-                  <span className="font-mono text-sm font-bold tracking-wider text-primary">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-xs font-bold tracking-wider text-primary">
                     {step.number}
                   </span>
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
-                    <step.icon className="h-5 w-5 text-primary" />
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
+                    <step.icon className="h-4.5 w-4.5 text-primary" />
                   </span>
                 </div>
-                <h3 className="font-heading text-base font-bold text-foreground sm:text-lg">
+                
+                {/* Ilustración circular integrada */}
+                <div className="my-4 flex justify-center">
+                  <div className="relative h-28 w-28 rounded-full overflow-hidden border border-border/40 bg-background/50 shadow-inner flex items-center justify-center">
+                    <img
+                      src={step.image}
+                      alt={step.title}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                  </div>
+                </div>
+
+                <h3 className="font-heading text-base font-bold text-foreground text-center group-hover:text-primary transition-colors">
                   {step.title}
                 </h3>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground text-center text-pretty">
                   {step.desc}
                 </p>
               </div>
               
-              <div className="mt-6 pt-4 border-t border-border/40">
+              {/* Botón rectangular al pie de la tarjeta */}
+              <div className="mt-6">
                 <a
                   href={step.actionHref}
-                  className="inline-flex items-center text-xs font-semibold tracking-widest text-primary hover:text-primary/80 transition-colors uppercase gap-1"
+                  className="block w-full rounded bg-primary py-2.5 text-center text-xs font-bold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 uppercase"
                 >
-                  {step.actionText} <span className="transition-transform group-hover:translate-x-1 flex">→</span>
+                  {step.actionText}
                 </a>
               </div>
             </div>
