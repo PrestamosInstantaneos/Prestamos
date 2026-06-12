@@ -50,7 +50,7 @@ export function SiteHeader() {
 
   return (
     <header className="absolute inset-x-0 top-0 z-50">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 sm:py-6 lg:px-10">
         <a href="#inicio" className="flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary">
             <Coins className="h-5 w-5 text-primary-foreground" />

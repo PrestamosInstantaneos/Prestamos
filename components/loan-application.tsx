@@ -347,20 +347,20 @@ export function LoanApplication() {
   }
 
   return (
-    <section id="solicitar" className="border-t border-border py-20 lg:py-28">
-      <div className="mx-auto max-w-3xl px-6 lg:px-10">
+    <section id="solicitar" className="border-t border-border py-12 md:py-20 lg:py-28">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-10">
         <div className="text-center">
           <p className="mb-4 text-xs font-semibold tracking-[0.3em] text-primary">
             SOLICITUD EN LÍNEA
           </p>
-          <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground text-balance sm:text-4xl">
+          <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground text-balance sm:text-3xl md:text-4xl">
             {user 
               ? "Tu Solicitud de Préstamo" 
               : step === 1 
               ? "Regístrate y solicita tu préstamo (Paso 1/2)" 
               : "Regístrate y solicita tu préstamo (Paso 2/2)"}
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-muted-foreground text-pretty">
+          <p className="mt-4 text-sm sm:text-base leading-relaxed text-muted-foreground text-pretty">
             {user 
               ? "Tu cuenta está activa y los datos de tu perfil han sido registrados exitosamente en nuestra base de datos."
               : step === 1
@@ -369,7 +369,7 @@ export function LoanApplication() {
           </p>
         </div>
 
-        <div className="mt-12 rounded-2xl border border-border bg-card p-6 sm:p-10">
+        <div className="mt-8 md:mt-12 rounded-2xl border border-border bg-card p-5 sm:p-8 lg:p-10">
           {user ? (
             // VISTA CUANDO EL USUARIO ESTÁ LOGUEADO
             <div className="flex flex-col items-center py-6 text-center">
@@ -578,7 +578,7 @@ export function LoanApplication() {
           ) : step === 1 ? (
             // FORMULARIO DE REGISTRO - PASO 1
             <form onSubmit={handleNextStep} className="space-y-6">
-              <div className="grid gap-6 sm:grid-cols-2">
+              <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="nombres">Nombres</Label>
                   <Input
@@ -741,7 +741,7 @@ export function LoanApplication() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-md bg-primary py-4 text-sm font-semibold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full rounded-md bg-primary py-3 sm:py-4 text-xs sm:text-sm font-semibold tracking-wide sm:tracking-widest text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 SIGUIENTE
               </button>
@@ -749,7 +749,7 @@ export function LoanApplication() {
           ) : (
             // FORMULARIO DE REGISTRO - PASO 2
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid gap-6 sm:grid-cols-2">
+              <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="ciudad">Ciudad</Label>
                   <Input
@@ -867,14 +867,14 @@ export function LoanApplication() {
                   type="button"
                   onClick={() => setStep(1)}
                   disabled={loading}
-                  className="w-1/3 rounded-md border border-border py-4 text-sm font-semibold tracking-widest text-foreground transition-colors hover:bg-secondary disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-1/3 rounded-md border border-border py-3 sm:py-4 text-xs sm:text-sm font-semibold tracking-wide sm:tracking-widest text-foreground transition-colors hover:bg-secondary disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <ArrowLeft className="h-4 w-4" /> ATRÁS
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-2/3 rounded-md bg-primary py-4 text-sm font-semibold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-2/3 rounded-md bg-primary py-3 sm:py-4 text-xs sm:text-sm font-semibold tracking-wide sm:tracking-widest text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <>

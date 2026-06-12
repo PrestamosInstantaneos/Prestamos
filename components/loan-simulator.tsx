@@ -393,9 +393,9 @@ export function LoanSimulator() {
 
 
   return (
-    <section id="simulador" className="border-t border-border py-20 lg:py-28">
-      <div className="mx-auto max-w-7xl px-6 lg:px-10">
-        <div className="grid items-center gap-12 lg:grid-cols-2">
+    <section id="simulador" className="border-t border-border py-12 md:py-20 lg:py-28">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
+        <div className="grid items-center gap-8 lg:gap-12 lg:grid-cols-2">
           <div>
             {/* Botones de Tipo de Pago */}
             <div className="mb-4 flex space-x-2">
@@ -416,7 +416,7 @@ export function LoanSimulator() {
             <p className="mb-4 text-xs font-semibold tracking-[0.3em] text-primary">
               SIMULADOR
             </p>
-            <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground text-balance sm:text-4xl">
+            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground text-balance sm:text-3xl md:text-4xl">
               Calcula tu cuota mensual
             </h2>
             <p className="mt-4 max-w-md text-base leading-relaxed text-muted-foreground text-pretty">
@@ -442,7 +442,7 @@ export function LoanSimulator() {
               </div>
             </div>
 
-            <div className="mt-10 space-y-10">
+            <div className="mt-8 space-y-6 md:mt-10 md:space-y-10">
               <div>
                 <div className="mb-4 flex items-baseline justify-between">
                   <span className="text-sm font-medium text-muted-foreground">
@@ -539,11 +539,11 @@ export function LoanSimulator() {
           </div>
 
           {/* Result card */}
-          <div className="rounded-2xl border border-border bg-card p-8 lg:p-10">
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 lg:p-10">
             <p className="text-sm font-medium text-muted-foreground">
-              Resumen de prestamo
+              Resumen de préstamo
             </p>
-            <p className="mt-2 font-heading text-5xl font-extrabold tracking-tight text-primary">
+            <p className="mt-2 font-heading text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-primary break-words">
               {formatCurrency(loanAmountUsd)} - USD BCV
             </p>
             {amount > 0 && (
@@ -582,8 +582,8 @@ export function LoanSimulator() {
                     </span>
                   </div>
                   <div className="flex justify-between text-sm items-baseline mt-2">
-                    <span className="text-muted-foreground text-lg font-medium">Cantidad por cuota</span>
-                    <span className="font-heading text-2xl font-bold text-primary">
+                    <span className="text-muted-foreground text-base sm:text-lg font-medium">Cantidad por cuota</span>
+                    <span className="font-heading text-xl sm:text-2xl font-bold text-primary">
                       Bs. {formatBs(totalPaymentBs / 2)}
                     </span>
                   </div>
