@@ -7,7 +7,7 @@ export function Hero() {
       {/* Tapiz de fondo completo (Full-Bleed Cover) */}
       <div className="absolute inset-0 z-0">
         <Image
-          src="/images/roraima-bg.png"
+          src="/images/hero-bg-landscape.png"
           alt="Paisaje del Monte Tepuy Roraima al atardecer"
           fill
           priority
