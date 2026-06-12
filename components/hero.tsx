@@ -42,12 +42,12 @@ export function Hero() {
         <div className="relative mx-auto w-full max-w-xs sm:max-w-md lg:max-w-none">
           <div className="pointer-events-none absolute -inset-10 z-0 rounded-full bg-primary/10 blur-3xl" />
           <Image
-            src="/images/hero-finance.png"
-            alt="Tarjeta de crédito rosa con monedas doradas"
+            src="/images/hero-finance-modern.png"
+            alt="Ilustración artística de un camino hacia montañas doradas"
             width={760}
             height={760}
             priority
-            className="relative z-10 h-auto w-full object-contain"
+            className="relative z-10 h-auto w-full object-contain rounded-2xl border border-border/40 shadow-2xl shadow-primary/10"
           />
         </div>
       </div>
