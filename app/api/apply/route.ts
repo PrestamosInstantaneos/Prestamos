@@ -7,12 +7,12 @@ export const runtime = "nodejs"
 
 export async function POST(req: Request) {
   try {
-    const { nombres, apellidos, cedula, telefono, profesion, diasCobro } = await req.json()
+    const { nombres, apellidos, cedula, telefono, monto, modalidad, fechas, bcvRate, totalPagar } = await req.json()
 
     // Validación básica de campos
-    if (!nombres || !apellidos || !cedula || !telefono || !profesion || !diasCobro) {
+    if (!nombres || !apellidos || !cedula || !telefono || !modalidad) {
       return NextResponse.json(
-        { message: "Todos los campos son requeridos." },
+        { message: "Todos los campos obligatorios son requeridos." },
         { status: 400 }
       )
     }
@@ -61,16 +61,63 @@ export async function POST(req: Request) {
 
     const sheets = google.sheets({ version: "v4", auth })
 
-    // Agrega la fila a la hoja de cálculo.
-    // Usamos el rango 'A:F' para asegurar la inserción en las primeras 6 columnas
+    // Agrega la fila a la hoja de cálculo en "Hoja 2" (rango 'Hoja 2'!A:K)
+    const timestamp = new Date().toLocaleString("es-VE", { timeZone: "America/Caracas" })
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
-      range: "A:F",
+      range: "'Hoja 2'!A:K",
       valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [[nombres, apellidos, cedula, telefono, profesion, diasCobro]],
+        values: [
+          [
+            timestamp,
+            cedula,
+            nombres,
+            apellidos,
+            telefono,
+            modalidad,
+            typeof monto === "number" ? `Bs. ${monto.toLocaleString("es-VE")}` : monto,
+            fechas,
+            typeof totalPagar === "number" ? `Bs. ${totalPagar.toLocaleString("es-VE")}` : totalPagar,
+            typeof bcvRate === "number" ? `Bs. ${bcvRate.toLocaleString("es-VE")}` : bcvRate,
+            "Pendiente",
+          ]
+        ],
       },
     })
+
+    // Enviar notificación a Telegram si está configurado
+    const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN
+    const telegramChatId = process.env.TELEGRAM_CHAT_ID
+
+    if (telegramBotToken && telegramChatId) {
+      try {
+        const messageText = `🔔 *Nueva Solicitud de Préstamo* 🔔\n\n` +
+          `👤 *Cliente:* ${nombres} ${apellidos}\n` +
+          `🪪 *Cédula:* ${cedula}\n` +
+          `📞 *Teléfono:* ${telefono}\n` +
+          `📋 *Modalidad:* ${modalidad}\n` +
+          `💰 *Monto:* ${typeof monto === 'number' ? `Bs. ${monto.toLocaleString("es-VE")}` : monto}\n` +
+          `🗓️ *Fechas:* ${fechas}\n` +
+          `💵 *Total a pagar:* ${typeof totalPagar === 'number' ? `Bs. ${totalPagar.toLocaleString("es-VE")}` : totalPagar}\n` +
+          `💱 *Tasa BCV:* Bs. ${typeof bcvRate === 'number' ? bcvRate.toLocaleString("es-VE") : bcvRate}\n` +
+          `⏰ *Fecha/Hora:* ${timestamp}`;
+
+        await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            chat_id: telegramChatId,
+            text: messageText,
+            parse_mode: "Markdown",
+          }),
+        });
+      } catch (tgError) {
+        console.error("Error al enviar notificación de Telegram:", tgError)
+      }
+    }
 
     return NextResponse.json({ success: true, data: response.data })
   } catch (error: any) {
@@ -81,3 +128,4 @@ export async function POST(req: Request) {
     )
   }
 }
+

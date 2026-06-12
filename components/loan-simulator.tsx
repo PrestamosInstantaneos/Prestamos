@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button" // Importar Button
 import { format, addDays, differenceInDays, isValid, parse } from "date-fns"
 import { es } from "date-fns/locale"
+import { CheckCircle2, X, MessageSquare } from "lucide-react"
+
 
 type BcvRate = {
   usd: number
@@ -53,7 +55,7 @@ function formatBs(value: number) {
  */
 function calculateLoan(
   amount: number,
-  paymentType: 'total' | 'installments',
+  paymentType: 'total' | 'installments' | 'others',
   firstPaymentDate: Date | null,
   lastPaymentDate: Date | null, // Usado para cuotas, para total es el mismo que firstPaymentDate
   bcvUsd: number,
@@ -72,6 +74,10 @@ function calculateLoan(
     lastPaymentDays: 0,
     totalDaysBetweenInstallments: 0,
   };
+
+  if (paymentType === 'others') {
+    return defaultReturn;
+  }
 
   if (amount <= 0 || bcvUsd <= 0) {
     console.log("calculateLoan: Invalid amount or bcvUsd, returning zeros.")
@@ -145,8 +151,61 @@ function calculateLoan(
 
 export function LoanSimulator() {
   const [amount, setAmount] = useState(1000) // Monto inicial en Bs
-  const [paymentType, setPaymentType] = useState<'total' | 'installments'>('total'); // Nuevo estado para el tipo de pago
-  const [user, setUser] = useState<{ verificado?: string } | null>(null)
+  const [paymentType, setPaymentType] = useState<'total' | 'installments' | 'others'>('total'); // Nuevo estado para el tipo de pago
+  const [user, setUser] = useState<any | null>(null)
+
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
+  const [modalStep, setModalStep] = useState<'confirm' | 'loading' | 'success' | 'error'>('confirm')
+  const [modalErrorMessage, setModalErrorMessage] = useState('')
+
+  const handleRequestLoanClick = () => {
+    if (!user) return
+    setModalStep('confirm')
+    setModalErrorMessage('')
+    setIsConfirmModalOpen(true)
+  }
+
+  const handleConfirmLoan = async () => {
+    if (!user) return
+    setModalStep('loading')
+    try {
+      const datesText = paymentType === 'total'
+        ? (singlePaymentDate && isValid(singlePaymentDate) ? format(singlePaymentDate, "dd/MM/yyyy") : "")
+        : paymentType === 'installments'
+        ? `1ª Cuota: ${firstInstallmentDate && isValid(firstInstallmentDate) ? format(firstInstallmentDate, "dd/MM/yyyy") : ""}, 2ª Cuota: ${lastInstallmentDate && isValid(lastInstallmentDate) ? format(lastInstallmentDate, "dd/MM/yyyy") : ""}`
+        : "A acordar con operador"
+
+      const response = await fetch("/api/apply", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombres: user.nombres,
+          apellidos: user.apellidos,
+          cedula: user.cedula,
+          telefono: user.telefono,
+          monto: paymentType === 'others' ? "Otros Montos (Monto a convenir)" : amount,
+          modalidad: paymentType === 'total' ? "Pago Total" : paymentType === 'installments' ? "Cuotas" : "Otros Montos",
+          fechas: datesText,
+          bcvRate: bcvUsd,
+          totalPagar: paymentType === 'others' ? "A convenir" : totalPaymentBs,
+        }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.message || "Error al enviar la solicitud.")
+      }
+
+      setModalStep('success')
+    } catch (err: any) {
+      console.error("Error al solicitar préstamo:", err)
+      setModalErrorMessage(err.message || "Hubo un problema al procesar tu solicitud. Por favor intenta de nuevo.")
+      setModalStep('error')
+    }
+  }
+
 
   useEffect(() => {
     function loadUser() {
@@ -460,100 +519,122 @@ export function LoanSimulator() {
                   >
                     Cuotas
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentType('others')}
+                    className={`rounded px-3 py-1.5 text-xs font-bold transition-all ${
+                      paymentType === 'others'
+                        ? 'bg-primary text-primary-foreground shadow'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Otros Montos
+                  </button>
                 </div>
               </div>
 
-              <div className="space-y-6">
-                {/* Monto del préstamo */}
-                <div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      Monto a solicitar
-                    </span>
-                    <span className="font-heading text-lg font-extrabold text-primary">
-                      Bs. {formatBs(amount)}
-                    </span>
+              {paymentType === 'others' ? (
+                <div className="flex flex-col items-center justify-center text-center py-10 px-4 space-y-5 bg-black/20 rounded-2xl border border-white/5 my-4">
+                  <div className="rounded-full bg-primary/15 p-4 animate-bounce">
+                    <MessageSquare className="h-8 w-8 text-primary" />
                   </div>
-                  <Slider
-                    value={[amount]}
-                    onValueChange={(v) =>
-                      setAmount(Array.isArray(v) ? v[0] : v)
-                    }
-                    min={1000}
-                    max={6000} // Límite a 6000 Bs
-                    step={100}
-                  />
-                  <div className="mt-2 flex justify-between text-[10px] text-muted-foreground font-mono">
-                    <span>Bs. 1.000</span>
-                    <span>Bs. 6.000</span>
-                  </div>
+                  <p className="text-sm sm:text-base font-semibold text-foreground leading-relaxed">
+                    Presione en solicitar monto para que se contacten y acordar el monto a necesitar con un operador al instante.
+                  </p>
                 </div>
-
-                {/* Sección de Fechas Condicional */}
-                {paymentType === 'total' ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
+              ) : (
+                <div className="space-y-6">
+                  {/* Monto del préstamo */}
+                  <div>
+                    <div className="mb-3 flex items-center justify-between">
                       <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        Fecha de pago total
+                        Monto a solicitar
+                      </span>
+                      <span className="font-heading text-lg font-extrabold text-primary">
+                        Bs. {formatBs(amount)}
                       </span>
                     </div>
-                    <Input
-                      type="text"
-                      placeholder="DD/MM/YYYY"
-                      value={singleDateInputValue}
-                      onChange={handleSingleDateChange}
-                      className="bg-black/45 border-border/60 hover:border-primary/40 focus:border-primary focus:ring-1 focus:ring-primary/20 text-center font-mono py-5 text-sm shadow-inner rounded-xl"
+                    <Slider
+                      value={[amount]}
+                      onValueChange={(v) =>
+                        setAmount(Array.isArray(v) ? v[0] : v)
+                      }
+                      min={1000}
+                      max={6000} // Límite a 6000 Bs
+                      step={100}
                     />
-                    {singleDateInputError && (
-                      <p className="text-[11px] text-red-400 font-medium">{singleDateInputError}</p>
-                    )}
-                    <div className="flex justify-between items-center text-[10px] text-muted-foreground font-mono pt-1">
-                      <span>Plazo máximo: 31 días</span>
-                      <span>Días hábiles: <strong className="text-foreground">{firstPaymentDays}</strong></span>
+                    <div className="mt-2 flex justify-between text-[10px] text-muted-foreground font-mono">
+                      <span>Bs. 1.000</span>
+                      <span>Bs. 6.000</span>
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-                      Fechas de cuotas (DD/MM)
-                    </span>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">1ª Cuota</label>
-                        <Input
-                          type="text"
-                          placeholder="DD/MM"
-                          value={firstInstallmentInputValue}
-                          onChange={handleFirstInstallmentDateChange}
-                          className="bg-black/45 border-border/60 hover:border-primary/40 focus:border-primary focus:ring-1 focus:ring-primary/20 text-center font-mono py-4 text-xs sm:text-sm shadow-inner rounded-xl"
-                        />
-                        {firstInstallmentInputError && (
-                          <p className="text-[10px] text-red-400 leading-tight">{firstInstallmentInputError}</p>
-                        )}
-                      </div>
 
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">2ª Cuota</label>
-                        <Input
-                          type="text"
-                          placeholder="DD/MM"
-                          value={lastInstallmentInputValue}
-                          onChange={handleLastInstallmentDateChange}
-                          className="bg-black/45 border-border/60 hover:border-primary/40 focus:border-primary focus:ring-1 focus:ring-primary/20 text-center font-mono py-4 text-xs sm:text-sm shadow-inner rounded-xl"
-                        />
-                        {lastInstallmentInputError && (
-                          <p className="text-[10px] text-red-400 leading-tight">{lastInstallmentInputError}</p>
-                        )}
+                  {/* Sección de Fechas Condicional */}
+                  {paymentType === 'total' ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          Fecha de pago total
+                        </span>
+                      </div>
+                      <Input
+                        type="text"
+                        placeholder="DD/MM/YYYY"
+                        value={singleDateInputValue}
+                        onChange={handleSingleDateChange}
+                        className="bg-black/45 border-border/60 hover:border-primary/40 focus:border-primary focus:ring-1 focus:ring-primary/20 text-center font-mono py-5 text-sm shadow-inner rounded-xl"
+                      />
+                      {singleDateInputError && (
+                        <p className="text-[11px] text-red-400 font-medium">{singleDateInputError}</p>
+                      )}
+                      <div className="flex justify-between items-center text-[10px] text-muted-foreground font-mono pt-1">
+                        <span>Plazo máximo: 31 días</span>
+                        <span>Días hábiles: <strong className="text-foreground">{firstPaymentDays}</strong></span>
                       </div>
                     </div>
-                    
-                    <p className="text-[10px] leading-normal text-muted-foreground">
-                      * El año se auto-completa. Ambas deben estar entre 1 y 31 días a partir de hoy, y el rango entre ellas no puede exceder los 31 días.
-                    </p>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                        Fechas de cuotas (DD/MM)
+                      </span>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">1ª Cuota</label>
+                          <Input
+                            type="text"
+                            placeholder="DD/MM"
+                            value={firstInstallmentInputValue}
+                            onChange={handleFirstInstallmentDateChange}
+                            className="bg-black/45 border-border/60 hover:border-primary/40 focus:border-primary focus:ring-1 focus:ring-primary/20 text-center font-mono py-4 text-xs sm:text-sm shadow-inner rounded-xl"
+                          />
+                          {firstInstallmentInputError && (
+                            <p className="text-[10px] text-red-400 leading-tight">{firstInstallmentInputError}</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">2ª Cuota</label>
+                          <Input
+                            type="text"
+                            placeholder="DD/MM"
+                            value={lastInstallmentInputValue}
+                            onChange={handleLastInstallmentDateChange}
+                            className="bg-black/45 border-border/60 hover:border-primary/40 focus:border-primary focus:ring-1 focus:ring-primary/20 text-center font-mono py-4 text-xs sm:text-sm shadow-inner rounded-xl"
+                          />
+                          {lastInstallmentInputError && (
+                            <p className="text-[10px] text-red-400 leading-tight">{lastInstallmentInputError}</p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <p className="text-[10px] leading-normal text-muted-foreground">
+                        * El año se auto-completa. Ambas deben estar entre 1 y 31 días a partir de hoy, y el rango entre ellas no puede exceder los 31 días.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -564,56 +645,75 @@ export function LoanSimulator() {
                 Resumen del préstamo
               </p>
               <p className="mt-3 font-heading text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-primary break-words">
-                {formatCurrency(loanAmountUsd)} - USD BCV
+                {paymentType === 'others' ? "Monto a convenir" : `${formatCurrency(loanAmountUsd)} - USD BCV`}
               </p>
-              {amount > 0 && (
+              {paymentType !== 'others' && amount > 0 && (
                 <p className="mt-1 text-sm text-muted-foreground">
                   ≈ Bs. {formatBs(amount)} al cambio oficial
                 </p>
               )}
 
               <div className="mt-8 space-y-4 border-t border-border pt-6">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Monto solicitado</span>
-                  <span className="font-semibold text-foreground">
-                    Bs. {formatBs(amount)}
-                  </span>
-                </div>
-
-                {paymentType === 'total' ? (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Fecha a Cancelar</span>
-                    <span className="font-semibold text-foreground">
-                      {singlePaymentDate && isValid(singlePaymentDate) ? format(singlePaymentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
-                    </span>
-                  </div>
+                {paymentType === 'others' ? (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Monto solicitado</span>
+                      <span className="font-semibold text-foreground">A convenir</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Modalidad</span>
+                      <span className="font-semibold text-foreground">Otros Montos</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Plazo</span>
+                      <span className="font-semibold text-foreground">A acordar con operador</span>
+                    </div>
+                  </>
                 ) : (
                   <>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Primera Cuota</span>
+                      <span className="text-muted-foreground">Monto solicitado</span>
                       <span className="font-semibold text-foreground">
-                        {firstInstallmentDate && isValid(firstInstallmentDate) ? format(firstInstallmentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
+                        Bs. {formatBs(amount)}
                       </span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Última Cuota</span>
-                      <span className="font-semibold text-foreground">
-                        {lastInstallmentDate && isValid(lastInstallmentDate) ? format(lastInstallmentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm items-baseline mt-2 pt-2 border-t border-dashed border-border/40">
-                      <span className="text-muted-foreground text-sm font-semibold uppercase tracking-wider">Por cuota (2 cuotas)</span>
-                      <span className="font-heading text-lg sm:text-xl font-extrabold text-primary">
-                        Bs. {formatBs(totalPaymentBs / 2)}
-                      </span>
-                    </div>
+
+                    {paymentType === 'total' ? (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Fecha a Cancelar</span>
+                        <span className="font-semibold text-foreground">
+                          {singlePaymentDate && isValid(singlePaymentDate) ? format(singlePaymentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Primera Cuota</span>
+                          <span className="font-semibold text-foreground">
+                            {firstInstallmentDate && isValid(firstInstallmentDate) ? format(firstInstallmentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Última Cuota</span>
+                          <span className="font-semibold text-foreground">
+                            {lastInstallmentDate && isValid(lastInstallmentDate) ? format(lastInstallmentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm items-baseline mt-2 pt-2 border-t border-dashed border-border/40">
+                          <span className="text-muted-foreground text-sm font-semibold uppercase tracking-wider">Por cuota (2 cuotas)</span>
+                          <span className="font-heading text-lg sm:text-xl font-extrabold text-primary">
+                            Bs. {formatBs(totalPaymentBs / 2)}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
 
                 <div className="flex justify-between border-t border-border pt-4 text-base">
                   <span className="font-bold text-foreground">Total a pagar</span>
                   <span className="font-heading font-extrabold text-foreground">
-                    Bs. {formatBs(totalPaymentBs)}
+                    {paymentType === 'others' ? "A convenir" : `Bs. ${formatBs(totalPaymentBs)}`}
                   </span>
                 </div>
               </div>
@@ -625,24 +725,159 @@ export function LoanSimulator() {
                   disabled
                   className="w-full rounded-md bg-muted py-4 text-center text-xs font-bold tracking-widest text-muted-foreground cursor-not-allowed opacity-60 uppercase"
                 >
-                  SOLICITAR ESTE PRÉSTAMO
+                  {paymentType === 'others' ? "SOLICITAR MONTO" : "SOLICITAR ESTE PRÉSTAMO"}
                 </button>
                 <p className="text-center text-[10px] font-semibold text-destructive/80">
                   Debes verificar tu cuenta para solicitar préstamos.
                 </p>
               </div>
+            ) : user ? (
+              <button
+                type="button"
+                onClick={handleRequestLoanClick}
+                className="mt-8 block w-full rounded bg-primary py-4 text-center text-xs font-bold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 uppercase"
+              >
+                {paymentType === 'others' ? "SOLICITAR MONTO" : "SOLICITAR ESTE PRÉSTAMO"}
+              </button>
             ) : (
               <a
                 href="#solicitar"
                 className="mt-8 block w-full rounded bg-primary py-4 text-center text-xs font-bold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 uppercase"
               >
-                SOLICITAR ESTE PRÉSTAMO
+                {paymentType === 'others' ? "SOLICITAR MONTO" : "SOLICITAR ESTE PRÉSTAMO"}
               </a>
             )}
           </div>
           
         </div>
       </div>
+
+      {/* Modal de Confirmación */}
+      {isConfirmModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-foreground">
+            
+            {modalStep === 'confirm' && (
+              <div className="space-y-6">
+                <div className="text-center">
+                  <h3 className="text-lg font-bold text-primary font-heading uppercase tracking-wide">
+                    Confirmar Solicitud
+                  </h3>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Por favor, verifica los detalles antes de enviar tu solicitud.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Modalidad:</span>
+                    <span className="font-semibold text-foreground">
+                      {paymentType === 'total' ? 'Pago Total' : paymentType === 'installments' ? 'Cuotas' : 'Otros Montos'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Monto:</span>
+                    <span className="font-semibold text-foreground">
+                      {paymentType === 'others' ? 'Monto a convenir' : `Bs. ${formatBs(amount)}`}
+                    </span>
+                  </div>
+                  {paymentType !== 'others' && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total a pagar:</span>
+                      <span className="font-semibold text-foreground text-primary font-heading">
+                        Bs. {formatBs(totalPaymentBs)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Fechas de Pago:</span>
+                    <span className="font-semibold text-foreground text-right">
+                      {paymentType === 'total' 
+                        ? (singlePaymentDate && isValid(singlePaymentDate) ? format(singlePaymentDate, "dd/MM/yyyy") : "N/A") 
+                        : paymentType === 'installments' 
+                        ? `1ª: ${firstInstallmentDate && isValid(firstInstallmentDate) ? format(firstInstallmentDate, "dd/MM") : "N/A"}, 2ª: ${lastInstallmentDate && isValid(lastInstallmentDate) ? format(lastInstallmentDate, "dd/MM") : "N/A"}`
+                        : 'A convenir con operador'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-xs leading-relaxed text-muted-foreground bg-primary/10 border border-primary/20 rounded-lg p-3">
+                  💡 <strong>Nota de confirmación:</strong> Al presionar <strong>Confirmar</strong>, su solicitud será enviada y un operador se pondrá en contacto con usted en breve a su teléfono para confirmar la transacción y pasarle el bauche (comprobante) de la operación.
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsConfirmModalOpen(false)}
+                    className="w-1/2 rounded-xl border-white/10 bg-white/5 text-foreground hover:bg-white/10 py-5 text-xs font-bold uppercase"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleConfirmLoan}
+                    className="w-1/2 rounded-xl bg-primary text-primary-foreground hover:opacity-90 py-5 text-xs font-bold uppercase"
+                  >
+                    Confirmar
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {modalStep === 'loading' && (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <span className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                <p className="text-sm font-medium text-foreground">Procesando solicitud...</p>
+              </div>
+            )}
+
+            {modalStep === 'success' && (
+              <div className="space-y-6 text-center py-4">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
+                  <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-emerald-400 font-heading uppercase">
+                    ¡Solicitud Registrada!
+                  </h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground text-pretty">
+                    Su solicitud ha sido enviada con éxito. Un operador le escribirá a su teléfono en breve para confirmar la transacción y pasarle el bauche de la operación.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setIsConfirmModalOpen(false)}
+                  className="w-full rounded-xl bg-primary text-primary-foreground hover:opacity-90 py-5 text-xs font-bold uppercase"
+                >
+                  Entendido
+                </Button>
+              </div>
+            )}
+
+            {modalStep === 'error' && (
+              <div className="space-y-6 text-center py-4">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
+                  <X className="h-10 w-10 text-red-500" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-red-400 font-heading uppercase">
+                    Error al enviar
+                  </h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {modalErrorMessage || "Hubo un problema al procesar tu solicitud. Por favor intenta de nuevo."}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setModalStep('confirm')}
+                  className="w-full rounded-xl bg-primary text-primary-foreground hover:opacity-90 py-5 text-xs font-bold uppercase"
+                >
+                  Reintentar
+                </Button>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
     </section>
+
   )
 }
