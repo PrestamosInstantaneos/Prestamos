@@ -1,7 +1,32 @@
+"use client"
+
 import Image from "next/image"
 import { ArrowRight } from "lucide-react"
+import { useState, useEffect } from "react"
 
 export function Hero() {
+  const [user, setUser] = useState<any | null>(null)
+
+  useEffect(() => {
+    function loadUser() {
+      const stored = localStorage.getItem("user")
+      if (stored) {
+        try {
+          setUser(JSON.parse(stored))
+        } catch {
+          setUser(null)
+        }
+      } else {
+        setUser(null)
+      }
+    }
+    loadUser()
+    window.addEventListener("auth-change", loadUser)
+    return () => {
+      window.removeEventListener("auth-change", loadUser)
+    }
+  }, [])
+
   return (
     <section id="inicio" className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center overflow-hidden">
       {/* Tapiz de fondo completo (Full-Bleed Cover) */}
@@ -24,14 +49,24 @@ export function Hero() {
             PRÉSTAMOS 100% FLEXIBLES
           </p>
           <h1 className="font-heading text-4xl font-extrabold leading-[1.05] tracking-tight text-white drop-shadow-2xl text-balance sm:text-6xl lg:text-7xl">
-            Tu préstamo,
-            <br />
-            al instante
+            {user ? (
+              <>
+                ¡Bienvenido,
+                <br />
+                <span className="text-primary">{user.nombres.split(" ")[0]} {user.apellidos.split(" ")[0]}</span>!
+              </>
+            ) : (
+              <>
+                Tu préstamo,
+                <br />
+                al instante
+              </>
+            )}
           </h1>
           <p className="mt-6 max-w-md text-sm sm:text-base leading-relaxed text-slate-200 drop-shadow-md">
-            Solicita el dinero que necesitas en minutos. Aprobación rápida,
-            tasas competitivas y desembolso directo a tu cuenta sin papeleo
-            interminable.
+            {user
+              ? "Tu cuenta está activa y lista para solicitar. Utiliza nuestro simulador abajo para configurar tu préstamo y recibir aprobación al instante."
+              : "Solicita el dinero que necesitas en minutos. Aprobación rápida, tasas competitivas y desembolso directo a tu cuenta sin papeleo interminable."}
           </p>
 
           <div className="mt-9 flex flex-wrap items-center justify-start gap-4">
