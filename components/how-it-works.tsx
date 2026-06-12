@@ -1,36 +1,64 @@
-import { FileText, BadgeCheck, Wallet } from "lucide-react"
+"use client"
 
-const steps = [
-  {
-    number: "01",
-    icon: FileText,
-    image: "/images/step-1.png",
-    title: "Completa la solicitud",
-    desc: "Llena el formulario en línea en menos de 5 minutos. Solo necesitas tus datos básicos.",
-    actionText: "COMENZAR",
-    actionHref: "#solicitar"
-  },
-  {
-    number: "02",
-    icon: BadgeCheck,
-    image: "/images/step-2.png",
-    title: "Aprobación veloz",
-    desc: "Analizamos tu solicitud al instante y te damos una respuesta sin esperas innecesarias.",
-    actionText: "VERIFICAR",
-    actionHref: "#solicitar"
-  },
-  {
-    number: "03",
-    icon: Wallet,
-    image: "/images/step-3.png",
-    title: "Recibe tu dinero",
-    desc: "Una vez aprobado, transferimos el monto directamente a tu cuenta bancaria.",
-    actionText: "SIMULAR",
-    actionHref: "#simulador"
-  },
-]
+import { useState, useEffect } from "react"
+import { FileText, BadgeCheck, Wallet, Calculator } from "lucide-react"
 
 export function HowItWorks() {
+  const [user, setUser] = useState<{ nombres: string; apellidos: string; telefono: string } | null>(null)
+
+  useEffect(() => {
+    function loadUser() {
+      const stored = localStorage.getItem("user")
+      if (stored) {
+        try {
+          setUser(JSON.parse(stored))
+        } catch {
+          setUser(null)
+        }
+      } else {
+        setUser(null)
+      }
+    }
+
+    loadUser()
+    window.addEventListener("auth-change", loadUser)
+    return () => {
+      window.removeEventListener("auth-change", loadUser)
+    }
+  }, [])
+
+  const steps = [
+    {
+      number: "01",
+      icon: user ? Calculator : FileText,
+      image: user ? "/images/step-1-logged.png" : "/images/step-1.png",
+      title: user ? "Simula y solicita" : "Completa la solicitud",
+      desc: user
+        ? "Ya estás registrado. Ve al simulador, ajusta tu monto y cuotas, y solicita tu préstamo al instante."
+        : "Llena el formulario en línea en menos de 5 minutos. Solo necesitas tus datos básicos.",
+      actionText: user ? "IR AL SIMULADOR" : "COMENZAR",
+      actionHref: user ? "#simulador" : "#solicitar"
+    },
+    {
+      number: "02",
+      icon: BadgeCheck,
+      image: "/images/step-2.png",
+      title: "Aprobación veloz",
+      desc: "Analizamos tu solicitud al instante y te damos una respuesta sin esperas innecesarias.",
+      actionText: "VERIFICAR",
+      actionHref: "#solicitar"
+    },
+    {
+      number: "03",
+      icon: Wallet,
+      image: "/images/step-3.png",
+      title: "Recibe tu dinero",
+      desc: "Una vez aprobado, transferimos el monto directamente a tu cuenta bancaria.",
+      actionText: "SIMULAR",
+      actionHref: "#simulador"
+    },
+  ]
+
   return (
     <section id="como-funciona" className="border-t border-border py-12 md:py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
@@ -95,3 +123,4 @@ export function HowItWorks() {
     </section>
   )
 }
+
