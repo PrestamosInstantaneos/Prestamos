@@ -68,9 +68,9 @@ export async function GET(req: NextRequest) {
     const userLoans = rows
       .filter((row) => {
         if (!row[4]) return false
-        const normalizedRowPhone = row[4].toString().replace(/\D/g, "")
-        const normalizedUserPhone = userPhone.replace(/\D/g, "")
-        // Coincidencia de número de teléfono
+        const normalizedRowPhone = row[4].toString().replace(/\D/g, "").slice(-10)
+        const normalizedUserPhone = userPhone.replace(/\D/g, "").slice(-10)
+        // Coincidencia de número de teléfono (últimos 10 dígitos)
         return normalizedRowPhone === normalizedUserPhone
       })
       .map((row) => {
