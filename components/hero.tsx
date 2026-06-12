@@ -45,9 +45,12 @@ export function Hero() {
       {/* Contenedor de contenido alineado a la izquierda */}
       <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-16 pt-32 sm:px-6 lg:px-10 lg:pb-24 lg:pt-40">
         <div className="max-w-2xl text-left flex flex-col items-start">
-          <p className="mb-4 text-xs font-bold tracking-[0.3em] text-primary drop-shadow-md">
-            PRÉSTAMOS 100% FLEXIBLES
-          </p>
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/20 backdrop-blur-md px-3.5 py-1.5 shadow-lg select-none">
+            <span className="flex h-2 w-2 shrink-0 rounded-full bg-primary animate-pulse" />
+            <span className="text-[10px] sm:text-xs font-bold tracking-[0.2em] text-white uppercase drop-shadow-sm">
+              PRÉSTAMOS 100% FLEXIBLES
+            </span>
+          </div>
           <h1 className="font-heading text-4xl font-extrabold leading-[1.05] tracking-tight text-white drop-shadow-2xl text-balance sm:text-6xl lg:text-7xl">
             {user ? (
               <>

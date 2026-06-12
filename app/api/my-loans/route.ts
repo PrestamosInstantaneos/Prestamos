@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
           montoCuota: row[7] || "",
           fechasPago: row[8] || "",
           totalPagar: row[9] || "",
+          tasaBCV: row[10] || "",
           estado: row[11] || "Pendiente",
         }
       })

@@ -95,7 +95,7 @@ function calculateLoan(
       return defaultReturn;
     }
     const days = differenceInDays(firstPaymentDate, today);
-    if (days <= 0 || days > 31) {
+    if (days < 0 || days > 31) {
       console.log("calculateLoan (total): Payment date out of range (days:", days, "), returning zeros.");
       return defaultReturn;
     }
@@ -124,7 +124,7 @@ function calculateLoan(
     const daysBetweenInstallments = differenceInDays(lastPaymentDate, firstPaymentDate);
 
     // Validation for installment dates
-    if (firstDays <= 0 || firstDays > 31 || lastDays <= 0 || lastDays > 31 || daysBetweenInstallments < 0 || daysBetweenInstallments > 31) {
+    if (firstDays < 0 || firstDays > 31 || lastDays < 0 || lastDays > 31 || daysBetweenInstallments < 0 || daysBetweenInstallments > 31) {
       console.log("calculateLoan (installments): Payment dates out of range or invalid order, returning zeros.");
       console.log({ firstDays, lastDays, daysBetweenInstallments });
       return defaultReturn;
@@ -246,12 +246,14 @@ export function LoanSimulator() {
 
   // Usar useEffect para inicializar la fecha solo en el cliente
   useEffect(() => {
-    const initialToday = new Date(); // Asegurar que 'today' sea consistente para la inicialización
-    const initialSingleDate = addDays(initialToday, 1);
+    const initialToday = new Date();
+    initialToday.setHours(0, 0, 0, 0);
+
+    const initialSingleDate = initialToday;
     setSinglePaymentDate(initialSingleDate);
     setSingleDateInputValue(format(initialSingleDate, "dd/MM/yyyy"));
 
-    const initialFirstInstallmentDate = addDays(initialToday, 1);
+    const initialFirstInstallmentDate = initialToday;
     setFirstInstallmentDate(initialFirstInstallmentDate);
     setFirstInstallmentInputValue(format(initialFirstInstallmentDate, "dd/MM")); // Formato DD/MM
     // NO inicializar lastInstallmentDate aquí para evitar el conflicto de validación
@@ -259,8 +261,12 @@ export function LoanSimulator() {
     setLastInstallmentInputValue("");
   }, []);
 
-  // Asegurar que 'today' sea consistente para cálculos en el cliente
-  const today = useMemo(() => new Date(), []);
+  // Asegurar que 'today' sea consistente para cálculos en el cliente (normalizado al inicio del día)
+  const today = useMemo(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, []);
   const currentYear = useMemo(() => format(today, "yyyy"), [today]); // Obtener el año actual
 
   const { data: rate, error } = useSWR<BcvRate>("/api/bcv-rate", fetcher, {
@@ -343,8 +349,8 @@ export function LoanSimulator() {
     }
 
     const daysDiff = differenceInDays(parsedDate, today); // Usar 'today' consistente
-    if (daysDiff <= 0 || daysDiff > 31) {
-      setSingleDateInputError("La fecha debe ser entre 1 y 31 días a partir de hoy.");
+    if (daysDiff < 0 || daysDiff > 31) {
+      setSingleDateInputError("La fecha debe ser a partir de hoy (máximo 31 días).");
       setSinglePaymentDate(null);
       return;
     }
@@ -372,8 +378,8 @@ export function LoanSimulator() {
     }
 
     const daysDiff = differenceInDays(parsedDate, today); // Usar 'today' consistente
-    if (daysDiff <= 0 || daysDiff > 31) {
-      setFirstInstallmentInputError("La fecha debe ser entre 1 y 31 días a partir de hoy.");
+    if (daysDiff < 0 || daysDiff > 31) {
+      setFirstInstallmentInputError("La fecha debe ser a partir de hoy (máximo 31 días).");
       setFirstInstallmentDate(null);
       return;
     }
@@ -422,8 +428,8 @@ export function LoanSimulator() {
     }
 
     const daysDiff = differenceInDays(parsedDate, today); // Usar 'today' consistente
-    if (daysDiff <= 0 || daysDiff > 31) {
-      setLastInstallmentInputError("La fecha debe ser entre 1 y 31 días a partir de hoy.");
+    if (daysDiff < 0 || daysDiff > 31) {
+      setLastInstallmentInputError("La fecha debe ser a partir de hoy (máximo 31 días).");
       setLastInstallmentDate(null);
       return;
     }
