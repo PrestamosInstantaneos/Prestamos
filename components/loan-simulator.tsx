@@ -395,206 +395,227 @@ export function LoanSimulator() {
   return (
     <section id="simulador" className="border-t border-border py-12 md:py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
-        <div className="grid items-center gap-8 lg:gap-12 lg:grid-cols-2">
-          <div>
-            {/* Botones de Tipo de Pago */}
-            <div className="mb-4 flex space-x-2">
-              <Button
-                variant={paymentType === 'total' ? 'default' : 'outline'}
-                onClick={() => setPaymentType('total')}
-              >
-                Pago Total
-              </Button>
-              <Button
-                variant={paymentType === 'installments' ? 'default' : 'outline'}
-                onClick={() => setPaymentType('installments')}
-              >
-                Cuotas
-              </Button>
-            </div>
-
-            <p className="mb-4 text-xs font-semibold tracking-[0.3em] text-primary">
-              SIMULADOR
-            </p>
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground text-balance sm:text-3xl md:text-4xl">
-              Calcula tu cuota mensual
-            </h2>
-            <p className="mt-4 max-w-md text-base leading-relaxed text-muted-foreground text-pretty">
-              Ajusta el monto y la fecha de cancelación para ver tu cuota estimada. Sin
-              compromiso y totalmente transparente.
-            </p>
-
-            {/* Tasa del dólar oficial (BCV) */}
-            <div className="mt-6 inline-flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
-              <span className="flex h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
-              <div className="text-sm">
-                <span className="text-muted-foreground">Dólar oficial BCV: </span>
-                <span className="font-semibold text-foreground">
-                  {rate ? `Bs. ${formatBs(rate.usd)}` : "Cargando..."}
+        
+        {/* Encabezado de Sección Centrado */}
+        <div className="mx-auto max-w-2xl text-center mb-10 md:mb-14">
+          <p className="mb-4 text-xs font-semibold tracking-[0.3em] text-primary">
+            SIMULADOR
+          </p>
+          <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground text-balance sm:text-3xl md:text-4xl">
+            Calcula tu cuota mensual
+          </h2>
+          <p className="mt-4 text-sm sm:text-base leading-relaxed text-muted-foreground">
+            Ajusta el monto y la fecha de cancelación para ver tu cuota estimada. Sin
+            compromiso y totalmente transparente.
+          </p>
+          
+          {/* Tasa del dólar oficial (BCV) flotante */}
+          <div className="mt-6 inline-flex items-center gap-3 rounded-full border border-border bg-card/30 backdrop-blur-sm px-4 py-2.5 shadow-md">
+            <span className="flex h-2 w-2 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="text-xs sm:text-sm text-left">
+              <span className="text-muted-foreground">Dólar oficial BCV: </span>
+              <span className="font-semibold text-foreground">
+                {rate ? `Bs. ${formatBs(rate.usd)}` : "Cargando..."}
+              </span>
+              {rate && (
+                <span className="ml-1 text-[10px] text-muted-foreground">
+                  · Actualizado {new Date(rate.fetchedAt).toLocaleDateString("es-VE")}
                 </span>
-                {rate && (
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    {rate.source === "bcv"
-                      ? `· Actualizado ${new Date(rate.fetchedAt).toLocaleDateString("es-VE")}`
-                      : "· Valor de referencia"}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-8 space-y-6 md:mt-10 md:space-y-10">
-              <div>
-                <div className="mb-4 flex items-baseline justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Monto del préstamo (Bs)
-                  </span>
-                  <span className="font-heading text-2xl font-bold text-foreground">
-                    Bs. {formatBs(amount)}
-                  </span>
-                </div>
-                <Slider
-                  value={[amount]}
-                  onValueChange={(v) =>
-                    setAmount(Array.isArray(v) ? v[0] : v)
-                  }
-                  min={1000}
-                  max={6000} // Límite a 6000 Bs
-                  step={100}
-                />
-                <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                  <span>Bs. 1.000</span>
-                  <span>Bs. 6.000</span>
-                </div>
-              </div>
-
-              {/* Sección de Fechas Condicional */}
-              {paymentType === 'total' ? (
-                <div>
-                  <div className="mb-4 flex items-baseline justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">
-                      Fecha de cancelación
-                    </span>
-                    <span className="font-heading text-2xl font-bold text-foreground">
-                      {singlePaymentDate && isValid(singlePaymentDate) ? format(singlePaymentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
-                    </span>
-                  </div>
-                  <Input
-                    type="text"
-                    placeholder="DD/MM/YYYY"
-                    value={singleDateInputValue}
-                    onChange={handleSingleDateChange}
-                  />
-                  {singleDateInputError && (
-                    <p className="mt-1 text-xs text-red-500">{singleDateInputError}</p>
-                  )}
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Ingresa la fecha de cancelación (DD/MM/YYYY). Máximo 31 días a partir de hoy.
-                  </p>
-                  <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                    <span>Días para cancelar: {firstPaymentDays}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4"> {/* Usamos space-y-4 para acercar los campos */}
-                  <div>
-                    <div className="mb-2"> {/* Reducido el margen */}
-                      <span className="text-sm font-medium text-muted-foreground">
-                        Primera Cuota
-                      </span>
-                    </div>
-                    <Input
-                      type="text"
-                      placeholder="DD/MM" // Actualizado placeholder
-                      value={firstInstallmentInputValue}
-                      onChange={handleFirstInstallmentDateChange}
-                    />
-                    {firstInstallmentInputError && (
-                      <p className="mt-1 text-xs text-red-500">{firstInstallmentInputError}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="mb-2"> {/* Reducido el margen */}
-                      <span className="text-sm font-medium text-muted-foreground">
-                        Última Cuota
-                      </span>
-                    </div>
-                    <Input
-                      type="text"
-                      placeholder="DD/MM" // Actualizado placeholder
-                      value={lastInstallmentInputValue}
-                      onChange={handleLastInstallmentDateChange}
-                    />
-                    {lastInstallmentInputError && (
-                      <p className="mt-1 text-xs text-red-500">{lastInstallmentInputError}</p>
-                    )}
-                  </div>
-                  {/* Nota instructiva combinada */}
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Ingresa las fechas de las cuotas (DD/MM). Ambas deben estar entre 1 y 31 días a partir de hoy, y el rango entre ellas no puede exceder los 31 días. El año se auto-completa.
-                  </p>
-                </div>
               )}
             </div>
           </div>
+        </div>
 
-          {/* Result card */}
-          <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 lg:p-10">
-            <p className="text-sm font-medium text-muted-foreground">
-              Resumen de préstamo
-            </p>
-            <p className="mt-2 font-heading text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-primary break-words">
-              {formatCurrency(loanAmountUsd)} - USD BCV
-            </p>
-            {amount > 0 && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                ≈ Bs. {formatBs(amount)} al cambio oficial
-              </p>
-            )}
-
-            <div className="mt-8 space-y-4 border-t border-border pt-6">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Monto solicitado</span>
-                <span className="font-semibold text-foreground">
-                  Bs. {formatBs(amount)}
+        {/* Grilla de dos tarjetas alineadas */}
+        <div className="grid gap-6 md:gap-8 lg:grid-cols-2 items-start max-w-5xl mx-auto">
+          
+          {/* Tarjeta 1: Configurador / Inputs */}
+          <div className="rounded-2xl border border-border bg-card/30 backdrop-blur-md p-5 sm:p-8 lg:p-10 space-y-6 flex flex-col justify-between min-h-[440px] shadow-xl">
+            <div>
+              {/* Selector de tipo de pago */}
+              <div className="mb-6 flex items-center justify-between border-b border-border/40 pb-4">
+                <span className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+                  Modalidad:
                 </span>
+                <div className="flex bg-background/55 border border-border/80 p-1 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentType('total')}
+                    className={`rounded px-3 py-1.5 text-xs font-bold transition-all ${
+                      paymentType === 'total'
+                        ? 'bg-primary text-primary-foreground shadow'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Pago Total
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentType('installments')}
+                    className={`rounded px-3 py-1.5 text-xs font-bold transition-all ${
+                      paymentType === 'installments'
+                        ? 'bg-primary text-primary-foreground shadow'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Cuotas
+                  </button>
+                </div>
               </div>
 
-              {paymentType === 'total' ? (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Fecha a Cancelar</span>
-                  <span className="font-semibold text-foreground">
-                    {singlePaymentDate && isValid(singlePaymentDate) ? format(singlePaymentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
-                  </span>
+              <div className="space-y-6">
+                {/* Monto del préstamo */}
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Monto a solicitar
+                    </span>
+                    <span className="font-heading text-lg font-extrabold text-primary">
+                      Bs. {formatBs(amount)}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[amount]}
+                    onValueChange={(v) =>
+                      setAmount(Array.isArray(v) ? v[0] : v)
+                    }
+                    min={1000}
+                    max={6000} // Límite a 6000 Bs
+                    step={100}
+                  />
+                  <div className="mt-2 flex justify-between text-[10px] text-muted-foreground font-mono">
+                    <span>Bs. 1.000</span>
+                    <span>Bs. 6.000</span>
+                  </div>
                 </div>
-              ) : (
-                <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Primera Cuota</span>
-                    <span className="font-semibold text-foreground">
-                      {firstInstallmentDate && isValid(firstInstallmentDate) ? format(firstInstallmentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
-                    </span>
+
+                {/* Sección de Fechas Condicional */}
+                {paymentType === 'total' ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Fecha de pago total
+                      </span>
+                    </div>
+                    <Input
+                      type="text"
+                      placeholder="DD/MM/YYYY"
+                      value={singleDateInputValue}
+                      onChange={handleSingleDateChange}
+                      className="bg-background/50 border-border/80 text-center font-mono py-5 text-sm"
+                    />
+                    {singleDateInputError && (
+                      <p className="text-[11px] text-red-400 font-medium">{singleDateInputError}</p>
+                    )}
+                    <div className="flex justify-between items-center text-[10px] text-muted-foreground font-mono pt-1">
+                      <span>Plazo máximo: 31 días</span>
+                      <span>Días hábiles: <strong className="text-foreground">{firstPaymentDays}</strong></span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Última Cuota</span>
-                    <span className="font-semibold text-foreground">
-                      {lastInstallmentDate && isValid(lastInstallmentDate) ? format(lastInstallmentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
+                ) : (
+                  <div className="space-y-4">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                      Fechas de cuotas (DD/MM)
                     </span>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">1ª Cuota</label>
+                        <Input
+                          type="text"
+                          placeholder="DD/MM"
+                          value={firstInstallmentInputValue}
+                          onChange={handleFirstInstallmentDateChange}
+                          className="bg-background/50 border-border/80 text-center font-mono py-4 text-xs sm:text-sm"
+                        />
+                        {firstInstallmentInputError && (
+                          <p className="text-[10px] text-red-400 leading-tight">{firstInstallmentInputError}</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">2ª Cuota</label>
+                        <Input
+                          type="text"
+                          placeholder="DD/MM"
+                          value={lastInstallmentInputValue}
+                          onChange={handleLastInstallmentDateChange}
+                          className="bg-background/50 border-border/80 text-center font-mono py-4 text-xs sm:text-sm"
+                        />
+                        {lastInstallmentInputError && (
+                          <p className="text-[10px] text-red-400 leading-tight">{lastInstallmentInputError}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <p className="text-[10px] leading-normal text-muted-foreground">
+                      * El año se auto-completa. Ambas deben estar entre 1 y 31 días a partir de hoy, y el rango entre ellas no puede exceder los 31 días.
+                    </p>
                   </div>
-                  <div className="flex justify-between text-sm items-baseline mt-2">
-                    <span className="text-muted-foreground text-base sm:text-lg font-medium">Cantidad por cuota</span>
-                    <span className="font-heading text-xl sm:text-2xl font-bold text-primary">
-                      Bs. {formatBs(totalPaymentBs / 2)}
-                    </span>
-                  </div>
-                </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Tarjeta 2: Resumen / Resultados */}
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 lg:p-10 flex flex-col justify-between min-h-[440px] shadow-xl">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Resumen del préstamo
+              </p>
+              <p className="mt-3 font-heading text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-primary break-words">
+                {formatCurrency(loanAmountUsd)} - USD BCV
+              </p>
+              {amount > 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  ≈ Bs. {formatBs(amount)} al cambio oficial
+                </p>
               )}
 
-              <div className="flex justify-between border-t border-border pt-4 text-base">
-                <span className="font-medium text-foreground">Total a pagar</span>
-                <span className="font-heading font-bold text-foreground">
-                  Bs. {formatBs(totalPaymentBs)}
-                </span>
+              <div className="mt-8 space-y-4 border-t border-border pt-6">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Monto solicitado</span>
+                  <span className="font-semibold text-foreground">
+                    Bs. {formatBs(amount)}
+                  </span>
+                </div>
+
+                {paymentType === 'total' ? (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Fecha a Cancelar</span>
+                    <span className="font-semibold text-foreground">
+                      {singlePaymentDate && isValid(singlePaymentDate) ? format(singlePaymentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Primera Cuota</span>
+                      <span className="font-semibold text-foreground">
+                        {firstInstallmentDate && isValid(firstInstallmentDate) ? format(firstInstallmentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Última Cuota</span>
+                      <span className="font-semibold text-foreground">
+                        {lastInstallmentDate && isValid(lastInstallmentDate) ? format(lastInstallmentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm items-baseline mt-2 pt-2 border-t border-dashed border-border/40">
+                      <span className="text-muted-foreground text-sm font-semibold uppercase tracking-wider">Por cuota (2 cuotas)</span>
+                      <span className="font-heading text-lg sm:text-xl font-extrabold text-primary">
+                        Bs. {formatBs(totalPaymentBs / 2)}
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex justify-between border-t border-border pt-4 text-base">
+                  <span className="font-bold text-foreground">Total a pagar</span>
+                  <span className="font-heading font-extrabold text-foreground">
+                    Bs. {formatBs(totalPaymentBs)}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -602,23 +623,24 @@ export function LoanSimulator() {
               <div className="mt-8 space-y-2">
                 <button
                   disabled
-                  className="w-full rounded-md bg-muted py-4 text-center text-sm font-semibold tracking-widest text-muted-foreground cursor-not-allowed opacity-60"
+                  className="w-full rounded-md bg-muted py-4 text-center text-xs font-bold tracking-widest text-muted-foreground cursor-not-allowed opacity-60 uppercase"
                 >
                   SOLICITAR ESTE PRÉSTAMO
                 </button>
-                <p className="text-center text-xs font-semibold text-destructive/80 mt-2">
-                  Debes verificar tu cuenta para solicitar préstamos. Solo puedes usar el simulador por el momento.
+                <p className="text-center text-[10px] font-semibold text-destructive/80">
+                  Debes verificar tu cuenta para solicitar préstamos.
                 </p>
               </div>
             ) : (
               <a
                 href="#solicitar"
-                className="mt-8 block w-full rounded-md bg-primary py-4 text-center text-sm font-semibold tracking-widest text-primary-foreground transition-opacity hover:opacity-90"
+                className="mt-8 block w-full rounded bg-primary py-4 text-center text-xs font-bold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 uppercase"
               >
                 SOLICITAR ESTE PRÉSTAMO
               </a>
             )}
           </div>
+          
         </div>
       </div>
     </section>
