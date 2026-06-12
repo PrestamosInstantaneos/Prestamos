@@ -6,6 +6,32 @@ import { Calendar, ChevronLeft, ChevronRight } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
+function getFriendlyStatus(estado: string) {
+  const est = estado.trim().toLowerCase();
+  if (est === "pendiente") {
+    return {
+      label: "PENDIENTE POR APROBAR",
+      bgColor: "bg-amber-500/15 border-amber-500/25 text-amber-400"
+    };
+  }
+  if (
+    est === "aprobado" || 
+    est === "activo" || 
+    est === "por pagar" || 
+    est === "pendiente por pagar" ||
+    est === "pendiente_por_pagar"
+  ) {
+    return {
+      label: "PENDIENTE POR PAGAR",
+      bgColor: "bg-red-500/15 border-red-500/25 text-red-400 animate-pulse"
+    };
+  }
+  return {
+    label: estado.toUpperCase(),
+    bgColor: "bg-blue-500/15 border-blue-500/25 text-blue-400"
+  };
+}
+
 export function PendingLoansRibbon() {
   const [user, setUser] = useState<any | null>(null)
 
@@ -66,19 +92,32 @@ export function PendingLoansRibbon() {
         {/* Cinta deslizable */}
         <div 
           ref={scrollContainerRef}
-          className="flex-1 flex gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-1 py-0.5 select-none"
+          className="flex-1 min-w-0 flex flex-row flex-nowrap gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-1 py-0.5 select-none"
         >
-          {loans.map((loan: any, idx: number) => (
-            <div 
-              key={idx} 
-              className="snap-center shrink-0 flex items-center gap-2.5 bg-black/40 border border-white/5 rounded-full py-1.5 px-4 text-xs text-white max-w-full"
-            >
-              <Calendar className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-              <span className="whitespace-nowrap">
-                Tienes una solicitud <strong className="text-amber-400 uppercase text-[9px] tracking-wider bg-amber-500/15 border border-amber-500/25 px-1.5 py-0.5 rounded font-mono font-bold mr-1">{loan.estado}</strong> de <strong className="text-amber-300 font-semibold">{loan.monto}</strong> ({loan.modalidad}) para el <strong className="underline decoration-amber-500/40">{loan.fechasPago}</strong>. Total a pagar: <strong className="text-emerald-400 font-semibold">{loan.totalPagar}</strong>.
-              </span>
-            </div>
-          ))}
+          {loans.map((loan: any, idx: number) => {
+            const statusConfig = getFriendlyStatus(loan.estado);
+            const isPorPagar = loan.estado.trim().toLowerCase() === "aprobado" || 
+                               loan.estado.trim().toLowerCase() === "activo" || 
+                               loan.estado.trim().toLowerCase() === "por pagar" ||
+                               loan.estado.trim().toLowerCase() === "pendiente por pagar" ||
+                               loan.estado.trim().toLowerCase() === "pendiente_por_pagar";
+
+            return (
+              <div 
+                key={idx} 
+                className="snap-center shrink-0 min-w-max flex flex-row items-center gap-2.5 bg-black/40 border border-white/5 rounded-full py-1.5 px-4 text-xs text-white"
+              >
+                <Calendar className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                <span>
+                  {isPorPagar ? "Tienes una deuda " : "Tienes una solicitud "}
+                  <strong className={`${statusConfig.bgColor} uppercase text-[9px] tracking-wider border px-1.5 py-0.5 rounded font-mono font-bold mr-1`}>
+                    {statusConfig.label}
+                  </strong>{" "}
+                  de <strong className="text-amber-300 font-semibold">{loan.monto}</strong> ({loan.modalidad}) {isPorPagar ? "vence" : "para"} el <strong className="underline decoration-amber-500/40">{loan.fechasPago}</strong>. Total a pagar: <strong className="text-emerald-400 font-semibold">{loan.totalPagar}</strong>.
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Controles de deslizamiento */}
@@ -115,3 +154,4 @@ export function PendingLoansRibbon() {
     </div>
   )
 }
+
