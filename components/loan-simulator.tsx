@@ -430,7 +430,7 @@ export function LoanSimulator() {
         <div className="grid gap-6 md:gap-8 lg:grid-cols-2 items-start max-w-5xl mx-auto">
           
           {/* Tarjeta 1: Configurador / Inputs */}
-          <div className="rounded-2xl border border-border bg-card/30 backdrop-blur-md p-5 sm:p-8 lg:p-10 space-y-6 flex flex-col justify-between min-h-[440px] shadow-xl">
+          <div className="rounded-2xl border border-border/60 bg-card/55 backdrop-blur-xl p-5 sm:p-8 lg:p-10 space-y-6 flex flex-col justify-between lg:min-h-[460px] shadow-xl">
             <div>
               {/* Selector de tipo de pago */}
               <div className="mb-6 flex items-center justify-between border-b border-border/40 pb-4">
@@ -502,7 +502,7 @@ export function LoanSimulator() {
                       placeholder="DD/MM/YYYY"
                       value={singleDateInputValue}
                       onChange={handleSingleDateChange}
-                      className="bg-background/50 border-border/80 text-center font-mono py-5 text-sm"
+                      className="bg-black/45 border-border/60 hover:border-primary/40 focus:border-primary focus:ring-1 focus:ring-primary/20 text-center font-mono py-5 text-sm shadow-inner rounded-xl"
                     />
                     {singleDateInputError && (
                       <p className="text-[11px] text-red-400 font-medium">{singleDateInputError}</p>
@@ -526,7 +526,7 @@ export function LoanSimulator() {
                           placeholder="DD/MM"
                           value={firstInstallmentInputValue}
                           onChange={handleFirstInstallmentDateChange}
-                          className="bg-background/50 border-border/80 text-center font-mono py-4 text-xs sm:text-sm"
+                          className="bg-black/45 border-border/60 hover:border-primary/40 focus:border-primary focus:ring-1 focus:ring-primary/20 text-center font-mono py-4 text-xs sm:text-sm shadow-inner rounded-xl"
                         />
                         {firstInstallmentInputError && (
                           <p className="text-[10px] text-red-400 leading-tight">{firstInstallmentInputError}</p>
@@ -540,7 +540,7 @@ export function LoanSimulator() {
                           placeholder="DD/MM"
                           value={lastInstallmentInputValue}
                           onChange={handleLastInstallmentDateChange}
-                          className="bg-background/50 border-border/80 text-center font-mono py-4 text-xs sm:text-sm"
+                          className="bg-black/45 border-border/60 hover:border-primary/40 focus:border-primary focus:ring-1 focus:ring-primary/20 text-center font-mono py-4 text-xs sm:text-sm shadow-inner rounded-xl"
                         />
                         {lastInstallmentInputError && (
                           <p className="text-[10px] text-red-400 leading-tight">{lastInstallmentInputError}</p>
@@ -558,7 +558,7 @@ export function LoanSimulator() {
           </div>
 
           {/* Tarjeta 2: Resumen / Resultados */}
-          <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 lg:p-10 flex flex-col justify-between min-h-[440px] shadow-xl">
+          <div className="rounded-2xl border border-border/60 bg-card/85 backdrop-blur-xl p-5 sm:p-8 lg:p-10 flex flex-col justify-between lg:min-h-[460px] shadow-xl">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Resumen del préstamo
