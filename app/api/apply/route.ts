@@ -92,16 +92,35 @@ export async function POST(req: Request) {
 
     if (telegramBotToken && telegramChatId) {
       try {
+        const fechaHoy = timestamp.split(",")[0]
+        const montoStr = typeof monto === "number" ? `Bs. ${monto.toLocaleString("es-VE")}` : monto
+        const totalPagarStr = typeof totalPagar === "number" ? `Bs. ${totalPagar.toLocaleString("es-VE")}` : totalPagar
+
+        const whatsappTemplate = `👋 ¡Hola, *${nombres} ${apellidos}*!\n` +
+          `Mi nombre es *Isaac Canache*, operador de *ResuelveYa!* 🌟\n\n` +
+          `He recibido su solicitud de préstamo realizada el día de hoy (*${fechaHoy}*):\n\n` +
+          `💰 *Monto:* ${montoStr}\n` +
+          `📋 *Modalidad:* ${modalidad}\n` +
+          `🗓️ *Fecha(s) de pago:* ${fechas}\n` +
+          `💵 *Total a pagar:* ${totalPagarStr}\n\n` +
+          `¿Me podría confirmar si sus datos para el desembolso son:\n` +
+          `👤 *Titular:* ${nombres} ${apellidos}\n` +
+          `🪪 *Cédula:* ${cedula}\n` +
+          `📞 *Teléfono:* ${telefono}?\n\n` +
+          `¡Quedo atento a su confirmación para proceder con la operación y enviarle su comprobante! 👍⚡`
+
         const messageText = `🔔 *Nueva Solicitud de Préstamo* 🔔\n\n` +
           `👤 *Cliente:* ${nombres} ${apellidos}\n` +
           `🪪 *Cédula:* ${cedula}\n` +
           `📞 *Teléfono:* ${telefono}\n` +
           `📋 *Modalidad:* ${modalidad}\n` +
-          `💰 *Monto:* ${typeof monto === 'number' ? `Bs. ${monto.toLocaleString("es-VE")}` : monto}\n` +
+          `💰 *Monto:* ${montoStr}\n` +
           `🗓️ *Fechas:* ${fechas}\n` +
-          `💵 *Total a pagar:* ${typeof totalPagar === 'number' ? `Bs. ${totalPagar.toLocaleString("es-VE")}` : totalPagar}\n` +
+          `💵 *Total a pagar:* ${totalPagarStr}\n` +
           `💱 *Tasa BCV:* Bs. ${typeof bcvRate === 'number' ? bcvRate.toLocaleString("es-VE") : bcvRate}\n` +
-          `⏰ *Fecha/Hora:* ${timestamp}`;
+          `⏰ *Fecha/Hora:* ${timestamp}\n\n` +
+          `💬 *Mensaje para WhatsApp (Toca para copiar):*\n` +
+          `\`\`\`\n${whatsappTemplate}\n\`\`\``;
 
         await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
           method: "POST",
@@ -118,6 +137,7 @@ export async function POST(req: Request) {
         console.error("Error al enviar notificación de Telegram:", tgError)
       }
     }
+
 
     return NextResponse.json({ success: true, data: response.data })
   } catch (error: any) {
