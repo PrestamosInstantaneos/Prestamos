@@ -190,6 +190,7 @@ export function LoanSimulator() {
           fechas: datesText,
           bcvRate: bcvUsd,
           totalPagar: paymentType === 'others' ? "A convenir" : totalPaymentBs,
+          montoCuota: paymentType === 'installments' ? totalPaymentBs / 2 : null,
         }),
       })
 
@@ -786,6 +787,14 @@ export function LoanSimulator() {
                       <span className="text-muted-foreground">Total a pagar:</span>
                       <span className="font-semibold text-foreground text-primary font-heading">
                         Bs. {formatBs(totalPaymentBs)}
+                      </span>
+                    </div>
+                  )}
+                  {paymentType === 'installments' && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Monto por cuota:</span>
+                      <span className="font-semibold text-foreground text-primary font-heading">
+                        Bs. {formatBs(totalPaymentBs / 2)} (2 cuotas)
                       </span>
                     </div>
                   )}

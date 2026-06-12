@@ -7,7 +7,7 @@ export const runtime = "nodejs"
 
 export async function POST(req: Request) {
   try {
-    const { nombres, apellidos, cedula, telefono, monto, modalidad, fechas, bcvRate, totalPagar } = await req.json()
+    const { nombres, apellidos, cedula, telefono, monto, modalidad, fechas, bcvRate, totalPagar, montoCuota } = await req.json()
 
     // Validación básica de campos
     if (!nombres || !apellidos || !cedula || !telefono || !modalidad) {
@@ -61,11 +61,11 @@ export async function POST(req: Request) {
 
     const sheets = google.sheets({ version: "v4", auth })
 
-    // Agrega la fila a la hoja de cálculo en "Hoja 2" (rango 'Hoja 2'!A:K)
+    // Agrega la fila a la hoja de cálculo en "Hoja 2" (rango 'Hoja 2'!A:L)
     const timestamp = new Date().toLocaleString("es-VE", { timeZone: "America/Caracas" })
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
-      range: "'Hoja 2'!A:K",
+      range: "'Hoja 2'!A:L",
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [
@@ -77,6 +77,7 @@ export async function POST(req: Request) {
             telefono,
             modalidad,
             typeof monto === "number" ? `Bs. ${monto.toLocaleString("es-VE")}` : monto,
+            montoCuota ? `Bs. ${montoCuota.toLocaleString("es-VE")}` : (modalidad === "Cuotas" ? "A calcular" : "N/A"),
             fechas,
             typeof totalPagar === "number" ? `Bs. ${totalPagar.toLocaleString("es-VE")}` : totalPagar,
             typeof bcvRate === "number" ? `Bs. ${bcvRate.toLocaleString("es-VE")}` : bcvRate,
@@ -96,11 +97,16 @@ export async function POST(req: Request) {
         const montoStr = typeof monto === "number" ? `Bs. ${monto.toLocaleString("es-VE")}` : monto
         const totalPagarStr = typeof totalPagar === "number" ? `Bs. ${totalPagar.toLocaleString("es-VE")}` : totalPagar
 
+        const cuotaStr = montoCuota 
+          ? `Bs. ${montoCuota.toLocaleString("es-VE")}` 
+          : (modalidad === "Cuotas" && typeof totalPagar === "number" ? `Bs. ${(totalPagar / 2).toLocaleString("es-VE")}` : null)
+        const modalidadDisplay = modalidad + (cuotaStr ? ` (2 cuotas de ${cuotaStr})` : "")
+
         const whatsappTemplate = `👋 ¡Hola, *${nombres} ${apellidos}*!\n` +
           `Mi nombre es *Isaac Canache*, operador de *ResuelveYa!* 🌟\n\n` +
           `He recibido su solicitud de préstamo realizada el día de hoy (*${fechaHoy}*):\n\n` +
           `💰 *Monto:* ${montoStr}\n` +
-          `📋 *Modalidad:* ${modalidad}\n` +
+          `📋 *Modalidad:* ${modalidadDisplay}\n` +
           `🗓️ *Fecha(s) de pago:* ${fechas}\n` +
           `💵 *Total a pagar:* ${totalPagarStr}\n\n` +
           `¿Me podría confirmar si sus datos para el desembolso son:\n` +
@@ -113,7 +119,7 @@ export async function POST(req: Request) {
           `👤 *Cliente:* ${nombres} ${apellidos}\n` +
           `🪪 *Cédula:* ${cedula}\n` +
           `📞 *Teléfono:* ${telefono}\n` +
-          `📋 *Modalidad:* ${modalidad}\n` +
+          `📋 *Modalidad:* ${modalidadDisplay}\n` +
           `💰 *Monto:* ${montoStr}\n` +
           `🗓️ *Fechas:* ${fechas}\n` +
           `💵 *Total a pagar:* ${totalPagarStr}\n` +
@@ -121,6 +127,7 @@ export async function POST(req: Request) {
           `⏰ *Fecha/Hora:* ${timestamp}\n\n` +
           `💬 *Mensaje para WhatsApp (Toca para copiar):*\n` +
           `\`\`\`\n${whatsappTemplate}\n\`\`\``;
+
 
         await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
           method: "POST",
