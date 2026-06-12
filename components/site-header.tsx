@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Menu, X, Coins } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -14,6 +14,39 @@ const navLinks = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false)
+  const [user, setUser] = useState<{ nombres: string; apellidos: string; telefono: string } | null>(null)
+
+  useEffect(() => {
+    function loadUser() {
+      const stored = localStorage.getItem("user")
+      if (stored) {
+        try {
+          setUser(JSON.parse(stored))
+        } catch {
+          setUser(null)
+        }
+      } else {
+        setUser(null)
+      }
+    }
+
+    loadUser()
+    window.addEventListener("auth-change", loadUser)
+    return () => {
+      window.removeEventListener("auth-change", loadUser)
+    }
+  }, [])
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+      localStorage.removeItem("user")
+      setUser(null)
+      window.dispatchEvent(new Event("auth-change"))
+    } catch (err) {
+      console.error("Error al cerrar sesión:", err)
+    }
+  }
 
   return (
     <header className="absolute inset-x-0 top-0 z-50">
@@ -39,12 +72,28 @@ export function SiteHeader() {
           ))}
         </div>
 
-        <a
-          href="#solicitar"
-          className="hidden rounded-md bg-primary px-5 py-2.5 text-xs font-semibold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 lg:block"
-        >
-          SOLICITAR
-        </a>
+        <div className="hidden items-center gap-4 lg:flex">
+          {user ? (
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-semibold text-foreground uppercase">
+                Hola, {user.nombres}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="rounded-md border border-border px-4 py-2 text-xs font-semibold tracking-widest text-foreground hover:bg-secondary transition-colors"
+              >
+                SALIR
+              </button>
+            </div>
+          ) : (
+            <a
+              href="/login"
+              className="rounded-md bg-primary px-5 py-2.5 text-xs font-semibold tracking-widest text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              INGRESAR
+            </a>
+          )}
+        </div>
 
         <button
           type="button"
@@ -59,7 +108,7 @@ export function SiteHeader() {
       <div
         className={cn(
           "overflow-hidden border-t border-border bg-card/95 backdrop-blur lg:hidden",
-          open ? "max-h-96" : "max-h-0",
+          open ? "max-h-[450px]" : "max-h-0",
           "transition-all duration-300",
         )}
       >
@@ -74,6 +123,29 @@ export function SiteHeader() {
               {link.label}
             </a>
           ))}
+
+          {user ? (
+            <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-border">
+              <span className="px-3 text-xs font-semibold text-foreground">HOLA, {user.nombres.toUpperCase()}</span>
+              <button
+                onClick={() => {
+                  handleLogout()
+                  setOpen(false)
+                }}
+                className="w-full text-left rounded-md px-3 py-3 text-sm font-semibold tracking-wide text-destructive hover:bg-secondary"
+              >
+                CERRAR SESIÓN
+              </button>
+            </div>
+          ) : (
+            <a
+              href="/login"
+              onClick={() => setOpen(false)}
+              className="mt-2 pt-2 border-t border-border rounded-md px-3 py-3 text-sm font-semibold tracking-wide text-primary hover:bg-secondary"
+            >
+              INICIAR SESIÓN
+            </a>
+          )}
         </div>
       </div>
     </header>
