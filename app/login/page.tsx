@@ -699,9 +699,7 @@ export default function LoginPage() {
                   className="underline text-primary hover:text-primary/80 font-semibold inline-block cursor-pointer"
                 >
                   términos y condiciones
-                </button>{" "}
-                y autorizo a{" "}
-                <strong className="text-foreground">EMPRENDIMIENTO ISAAC CANACHE</strong> (RIF J508167368) a la verificación de mis datos según las condiciones legales.
+                </button>
               </label>
             </div>
 
@@ -772,7 +770,7 @@ export default function LoginPage() {
                 CONTRATO DE TÉRMINOS Y CONDICIONES DE USO Y SERVICIO
               </p>
               <p>
-                Este documento constituye el contrato de Términos y Condiciones que regulan el acceso y uso del sitio web "RESUELVE YA!" y los servicios de simulación y solicitud de créditos comerciales y micro-créditos otorgados por el titular <strong className="text-foreground">EMPRENDIMIENTO ISAAC CANACHE</strong>, titular del <strong className="text-foreground">RIF J508167368</strong>, con domicilio fiscal en Calle Principal Guatire - Guarenas, frente a Repuestos Charito, Casa Nro 3, Barrio Las Barrancas, Guatire, Estado Miranda, Zona Postal 1221, en adelante denominado <strong className="text-foreground">"LA EMPRESA"</strong> o <strong className="text-foreground">"EL ADMINISTRADOR"</strong>.
+                Este documento constituye el contrato de Términos y Condiciones que regulan el acceso y uso del sitio web "RESUELVE YA!" y los servicios de simulación y solicitud de créditos comerciales y micro-créditos otorgados bajo el RIF <strong className="text-foreground">J508167368</strong>, con domicilio fiscal en Calle Principal Guatire - Guarenas, frente a Repuestos Charito, Casa Nro 3, Barrio Las Barrancas, Guatire, Estado Miranda, Zona Postal 1221, en adelante denominado <strong className="text-foreground">"LA EMPRESA"</strong> o <strong className="text-foreground">"EL ADMINISTRADOR"</strong>.
               </p>
 
               <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
@@ -799,14 +797,14 @@ export default function LoginPage() {
                 3. VERIFICACIÓN LEGAL DE DATOS
               </h4>
               <p>
-                Al registrarse, el usuario autoriza expresamente a <strong className="text-foreground">EMPRENDIMIENTO ISAAC CANACHE</strong> a corroborar y auditar la información provista, incluyendo la realización de llamadas de verificación a referencias personales y comerciales.
+                Al registrarse, el usuario autoriza expresamente a la verificación, corroboración y auditoría de la información provista, incluyendo la realización de llamadas de verificación a referencias personales y comerciales.
               </p>
 
               <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
                 4. INFORMACIÓN CORPORATIVA Y DE CONTACTO
               </h4>
               <p>
-                Para respaldar la transparencia comercial, el usuario puede descargar o visualizar las credenciales fiscales oficiales de la empresa a través del documento del RIF jurídico oficial emitido por el SENIAT.
+                Para respaldar la transparencia comercial y legal de las operaciones, la validez del RIF <strong className="text-foreground">J508167368</strong> puede ser consultada y verificada de manera pública y oficial por cualquier interesado a través del portal oficial del <strong className="text-foreground">SENIAT</strong> (Servicio Nacional Integrado de Administración Aduanera y Tributaria) en su sitio web <a href="http://www.seniat.gob.ve" target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">www.seniat.gob.ve</a> utilizando la opción de "Consulta Comprobante Digital RIF".
               </p>
 
               <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
@@ -818,35 +816,24 @@ export default function LoginPage() {
             </div>
 
             {/* Footer del modal */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/5 pt-4 mt-4 shrink-0">
-              <a
-                href="/RIF-JURIDICO.pdf"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-primary hover:underline font-semibold"
+            <div className="flex justify-end gap-2 border-t border-white/5 pt-4 mt-4 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsTermsModalOpen(false)}
+                className="px-4 py-2 border border-white/10 hover:bg-white/5 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer"
               >
-                <FileText className="h-4 w-4" />
-                <span>Ver RIF Oficial (PDF) ↗</span>
-              </a>
-              <div className="flex gap-2 w-full sm:w-auto justify-end">
-                <button
-                  type="button"
-                  onClick={() => setIsTermsModalOpen(false)}
-                  className="px-4 py-2 border border-white/10 hover:bg-white/5 text-xs font-semibold rounded-lg text-white transition-colors"
-                >
-                  Cerrar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRegTerms(true)
-                    setIsTermsModalOpen(false)
-                  }}
-                  className="px-4 py-2 bg-primary hover:opacity-90 text-xs font-bold text-primary-foreground rounded-lg transition-opacity"
-                >
-                  Aceptar y Cerrar
-                </button>
-              </div>
+                Cerrar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRegTerms(true)
+                  setIsTermsModalOpen(false)
+                }}
+                className="px-4 py-2 bg-primary hover:opacity-90 text-xs font-bold text-primary-foreground rounded-lg transition-opacity cursor-pointer"
+              >
+                Aceptar y Cerrar
+              </button>
             </div>
 
           </div>
