@@ -770,7 +770,7 @@ export default function LoginPage() {
                 CONTRATO DE TÉRMINOS Y CONDICIONES DE USO Y SERVICIO
               </p>
               <p>
-                Este documento constituye el contrato de Términos y Condiciones que regulan el acceso y uso del sitio web "RESUELVE YA!" y los servicios de simulación y solicitud de créditos comerciales y micro-créditos otorgados bajo el RIF <strong className="text-foreground">J508167368</strong>, con domicilio fiscal en Calle Principal Guatire - Guarenas, frente a Repuestos Charito, Casa Nro 3, Barrio Las Barrancas, Guatire, Estado Miranda, Zona Postal 1221, en adelante denominado <strong className="text-foreground">"LA EMPRESA"</strong> o <strong className="text-foreground">"EL ADMINISTRADOR"</strong>.
+                Este documento constituye el contrato de Términos y Condiciones que regulan el acceso y uso del sitio web "RESUELVE YA!" y los servicios de simulación y solicitud de créditos comerciales y micro-créditos otorgados bajo el RIF <strong className="text-foreground">J508167368</strong>, en adelante denominado <strong className="text-foreground">"LA EMPRESA"</strong> o <strong className="text-foreground">"EL ADMINISTRADOR"</strong>.
               </p>
 
               <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
