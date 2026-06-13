@@ -7,10 +7,9 @@ import { CunaguaroLogo } from "./cunaguaro-logo"
 
 const navLinks = [
   { label: "INICIO", href: "#inicio" },
-  { label: "PRÉSTAMOS", href: "#prestamos" },
   { label: "SIMULADOR", href: "#simulador" },
   { label: "CÓMO FUNCIONA", href: "#como-funciona" },
-  { label: "CONTACTO", href: "#solicitar" },
+  { label: "CONTACTO", href: "#contacto" },
 ]
 
 export function SiteHeader() {

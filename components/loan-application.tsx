@@ -380,7 +380,7 @@ export function LoanApplication() {
             {user 
               ? "Tu cuenta está activa y los datos de tu perfil han sido registrados exitosamente en nuestra base de datos."
               : step === 1
-              ? "Completa el formulario para crear tu cuenta de usuario e iniciar el proceso de evaluación de préstamo."
+              ? "Completa el formulario para crear tu cuenta de usuario."
               : "Ingresa tus datos de residencia y adjunta tu identificación para completar tu registro."}
           </p>
         </div>

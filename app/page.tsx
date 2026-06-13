@@ -5,6 +5,7 @@ import { HowItWorks } from "@/components/how-it-works"
 import { LoanSimulator } from "@/components/loan-simulator"
 import { LoanHistory } from "@/components/loan-history"
 import { LoanApplication } from "@/components/loan-application"
+import { ContactSection } from "@/components/contact-section"
 import { SiteFooter } from "@/components/site-footer"
 
 export default function Page() {
@@ -17,6 +18,7 @@ export default function Page() {
       <LoanSimulator />
       <LoanHistory />
       <LoanApplication />
+      <ContactSection />
       <SiteFooter />
     </main>
   )
