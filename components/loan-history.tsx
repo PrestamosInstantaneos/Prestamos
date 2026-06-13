@@ -416,12 +416,24 @@ export function LoanHistory() {
                           <span className="text-muted-foreground font-medium">Total a Pagar:</span>
                           <span className="font-semibold text-emerald-400 font-heading">{loan.totalPagar}</span>
                         </div>
+                        {loan.mora && loan.mora !== "N/A" && loan.mora.trim() !== "" && (
+                          <div className="flex justify-between text-red-400 font-semibold">
+                            <span>Mora:</span>
+                            <span>{loan.mora}</span>
+                          </div>
+                        )}
                         <div className="flex flex-col gap-1 pt-2 border-t border-white/5 mt-1">
                           <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Fecha(s) de Pago:</span>
                           <span className="font-semibold text-white font-mono text-[11px] bg-black/25 px-2 py-1.5 rounded-md leading-relaxed select-all">
                             {loan.fechasPago}
                           </span>
                         </div>
+                        {loan.observacion && loan.observacion.trim() !== "" && (
+                          <div className="flex flex-col gap-1 border-t border-white/5 pt-2 mt-1">
+                            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Observación:</span>
+                            <span className="text-xs text-slate-300 italic leading-relaxed">{loan.observacion}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 

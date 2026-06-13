@@ -211,12 +211,24 @@ export function PendingLoansRibbon() {
                           <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total a Pagar:</span>
                           <span className="font-heading font-extrabold text-emerald-400 text-lg">{item.totalPagar}</span>
                         </div>
+                        {item.mora && item.mora !== "N/A" && item.mora.trim() !== "" && (
+                          <div className="flex justify-between items-center text-red-400 font-semibold">
+                            <span className="text-xs font-medium uppercase tracking-wider">Mora:</span>
+                            <span>{item.mora}</span>
+                          </div>
+                        )}
                         <div className="flex flex-col gap-1 border-t border-white/5 pt-2.5 mt-1">
                           <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Fechas de Pago:</span>
                           <span className="font-semibold text-white font-mono text-xs bg-black/25 px-2 py-1.5 rounded-md leading-relaxed select-all">
                             {item.fechasPago}
                           </span>
                         </div>
+                        {item.observacion && item.observacion.trim() !== "" && (
+                          <div className="flex flex-col gap-1 border-t border-white/5 pt-2.5 mt-1">
+                            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Observación:</span>
+                            <span className="text-xs text-slate-300 italic leading-relaxed">{item.observacion}</span>
+                          </div>
+                        )}
                         
                         <div className="pt-2.5 border-t border-white/5 space-y-2 text-xs">
                           {item.tasaBCV && (
