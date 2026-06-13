@@ -64,14 +64,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ loans: [] })
     }
 
-    // Filtrar solicitudes correspondientes al teléfono del usuario
+    const userCedula = decoded.cedula
+
+    // Filtrar solicitudes correspondientes al teléfono del usuario o a su cédula
     const userLoans = rows
       .filter((row) => {
-        if (!row[4]) return false
-        const normalizedRowPhone = row[4].toString().replace(/\D/g, "").slice(-10)
-        const normalizedUserPhone = userPhone.replace(/\D/g, "").slice(-10)
-        // Coincidencia de número de teléfono (últimos 10 dígitos)
-        return normalizedRowPhone === normalizedUserPhone
+        // Coincidencia por teléfono (últimos 10 dígitos)
+        const rowPhone = row[4] ? row[4].toString().replace(/\D/g, "").slice(-10) : ""
+        const userPhoneNormalized = userPhone.replace(/\D/g, "").slice(-10)
+        const phoneMatches = rowPhone && rowPhone === userPhoneNormalized
+
+        // Coincidencia por cédula (solo dígitos numéricos)
+        const rowCedula = row[1] ? row[1].toString().replace(/\D/g, "") : ""
+        const userCedulaNormalized = userCedula ? userCedula.replace(/\D/g, "") : ""
+        const cedulaMatches = rowCedula && rowCedula === userCedulaNormalized
+
+        return phoneMatches || cedulaMatches
       })
       .map((row) => {
         return {
