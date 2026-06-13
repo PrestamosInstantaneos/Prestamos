@@ -26,6 +26,12 @@ function getFriendlyStatus(estado: string) {
       bgColor: "bg-red-500/15 border-red-500/25 text-red-400 animate-pulse"
     };
   }
+  if (est === "pagando") {
+    return {
+      label: "PAGANDO",
+      bgColor: "bg-cyan-500/15 border-cyan-500/25 text-cyan-400 animate-pulse"
+    };
+  }
   return {
     label: estado.toUpperCase(),
     bgColor: "bg-blue-500/15 border-blue-500/25 text-blue-400"
@@ -102,7 +108,8 @@ export function PendingLoansRibbon() {
                                loan.estado.trim().toLowerCase() === "activo" || 
                                loan.estado.trim().toLowerCase() === "por pagar" ||
                                loan.estado.trim().toLowerCase() === "pendiente por pagar" ||
-                               loan.estado.trim().toLowerCase() === "pendiente_por_pagar";
+                               loan.estado.trim().toLowerCase() === "pendiente_por_pagar" ||
+                               loan.estado.trim().toLowerCase() === "pagando";
 
             return (
               <div 

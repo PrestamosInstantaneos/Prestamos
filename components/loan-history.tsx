@@ -38,6 +38,14 @@ function getFriendlyStatus(estado: string) {
       icon: CheckCircle2
     };
   }
+  if (est === "pagando") {
+    return {
+      label: "PAGANDO",
+      bgColor: "bg-cyan-500/15 border-cyan-500/25 text-cyan-400",
+      textColor: "text-cyan-400",
+      icon: RefreshCw
+    };
+  }
   if (est === "rechazado") {
     return {
       label: "RECHAZADO",
@@ -167,11 +175,13 @@ export function LoanHistory() {
           const status = loan.estado.trim().toLowerCase();
           const isPendienteAprobar = status === "pendiente";
           const isPendientePagar = ["aprobado", "activo", "por pagar", "pendiente por pagar", "pendiente_por_pagar"].includes(status);
+          const isPagando = status === "pagando";
           const isPagado = status === "pagado";
           const isRechazado = status === "rechazado";
 
           if (estadoFilter === "pendiente-aprobar" && !isPendienteAprobar) return false;
           if (estadoFilter === "pendiente-pagar" && !isPendientePagar) return false;
+          if (estadoFilter === "pagando" && !isPagando) return false;
           if (estadoFilter === "pagado" && !isPagado) return false;
           if (estadoFilter === "rechazado" && !isRechazado) return false;
         }
@@ -271,6 +281,7 @@ export function LoanHistory() {
                     { id: "all", label: "Todos" },
                     { id: "pendiente-aprobar", label: "Por Aprobar" },
                     { id: "pendiente-pagar", label: "Por Pagar" },
+                    { id: "pagando", label: "Pagando" },
                     { id: "pagado", label: "Pagados" },
                     { id: "rechazado", label: "Rechazados" }
                   ].map((btn) => (
