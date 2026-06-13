@@ -86,14 +86,19 @@ export async function GET(req: NextRequest) {
         }
       })
 
-    // Solo devolver préstamos que no estén completados (no pagados ni rechazados)
-    const pendingLoans = userLoans.filter(
-      (loan) =>
-        loan.estado.toLowerCase() !== "pagado" &&
-        loan.estado.toLowerCase() !== "rechazado"
-    )
+    const { searchParams } = new URL(req.url)
+    const includeAll = searchParams.get("all") === "true"
 
-    return NextResponse.json({ loans: pendingLoans })
+    // Solo devolver préstamos que no estén completados (no pagados ni rechazados), a menos que se solicite todo
+    const loansToReturn = includeAll
+      ? userLoans
+      : userLoans.filter(
+          (loan) =>
+            loan.estado.toLowerCase() !== "pagado" &&
+            loan.estado.toLowerCase() !== "rechazado"
+        )
+
+    return NextResponse.json({ loans: loansToReturn })
   } catch (error) {
     console.error("Error al obtener préstamos del usuario:", error)
     return NextResponse.json({ loans: [] }, { status: 500 })

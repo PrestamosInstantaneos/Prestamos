@@ -3,6 +3,7 @@ import { Hero } from "@/components/hero"
 import { PendingLoansRibbon } from "@/components/pending-loans-ribbon"
 import { HowItWorks } from "@/components/how-it-works"
 import { LoanSimulator } from "@/components/loan-simulator"
+import { LoanHistory } from "@/components/loan-history"
 import { LoanApplication } from "@/components/loan-application"
 import { SiteFooter } from "@/components/site-footer"
 
@@ -14,6 +15,7 @@ export default function Page() {
       <PendingLoansRibbon />
       <HowItWorks />
       <LoanSimulator />
+      <LoanHistory />
       <LoanApplication />
       <SiteFooter />
     </main>
