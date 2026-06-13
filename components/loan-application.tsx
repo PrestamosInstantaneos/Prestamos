@@ -379,9 +379,6 @@ export function LoanApplication() {
               <h3 className="font-heading text-2xl font-bold text-card-foreground">
                 ¡Cuenta Activa y Solicitud Registrada!
               </h3>
-              <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-                Hola, <strong className="text-foreground">{user.nombres} {user.apellidos}</strong>. Tu número de teléfono <strong className="text-foreground">{user.telefono}</strong> es tu credencial de acceso. Nuestro equipo está evaluando tu perfil.
-              </p>
               
               <div className="mt-8 w-full max-w-md rounded-xl border border-border bg-secondary/20 p-6 text-left space-y-3 text-sm">
                 <h4 className="font-heading font-semibold text-foreground border-b border-border pb-2">Resumen del Perfil Registrado</h4>
@@ -429,19 +426,6 @@ export function LoanApplication() {
                   <div className="flex justify-between border-t border-border/50 pt-2 mt-2">
                     <span className="text-muted-foreground">Referencias:</span>
                     <span className="font-medium text-foreground text-right max-w-[200px] break-words">{user.referencias}</span>
-                  </div>
-                )}
-                {user.driveLink && (
-                  <div className="flex justify-between border-t border-border/50 pt-2 mt-2">
-                    <span className="text-muted-foreground">Foto Cédula:</span>
-                    <a
-                      href={user.driveLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-primary hover:underline"
-                    >
-                      Ver en Google Drive
-                    </a>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-border/50 pt-2 mt-2">
