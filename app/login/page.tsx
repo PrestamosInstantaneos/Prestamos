@@ -83,7 +83,8 @@ export default function LoginPage() {
   const [regCiudad, setRegCiudad] = useState("")
   const [regMunicipio, setRegMunicipio] = useState("")
   const [regCalle, setRegCalle] = useState("")
-  const [regReferencias, setRegReferencias] = useState("")
+  const [regRefPhone, setRegRefPhone] = useState("")
+  const [regRefRelacion, setRegRefRelacion] = useState("Familiar")
   const [regCedulaPhoto, setRegCedulaPhoto] = useState<string | null>(null)
   const [regTerms, setRegTerms] = useState(false)
   const [showExamplePhoto, setShowExamplePhoto] = useState(false)
@@ -133,6 +134,15 @@ export default function LoginPage() {
   const validatePhone = (phone: string): boolean => {
     const cleaned = phone.replace(/-/g, "")
     return /^(0412|0414|0424|0416|0426)\d{7}$/.test(cleaned)
+  }
+
+  const handleRegRefPhoneChange = (value: string) => {
+    const digits = value.replace(/\D/g, "")
+    if (digits.length <= 4) {
+      setRegRefPhone(digits)
+    } else {
+      setRegRefPhone(`${digits.slice(0, 4)}-${digits.slice(4, 11)}`)
+    }
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -220,8 +230,13 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null)
 
-    if (!regCiudad.trim() || !regMunicipio.trim() || !regCalle.trim() || !regReferencias.trim()) {
-      setError("Por favor ingresa tu dirección de residencia y tus referencias.")
+    if (!regCiudad.trim() || !regMunicipio.trim() || !regCalle.trim() || !regRefPhone.trim()) {
+      setError("Por favor ingresa tu dirección de residencia y tu teléfono de referencia.")
+      return
+    }
+
+    if (!validatePhone(regRefPhone)) {
+      setError("El número de teléfono de referencia debe iniciar con una operadora de Venezuela válida (0412, 0414, 0424, 0416, 0426) seguida de 7 dígitos. Ejemplo: 0412-1234567")
       return
     }
 
@@ -264,7 +279,7 @@ export default function LoginPage() {
           ciudad: regCiudad,
           municipio: regMunicipio,
           calle: regCalle,
-          referencias: regReferencias,
+          referencias: `${regRefPhone} (${regRefRelacion})`,
           cedulaPhoto: regCedulaPhoto,
         }),
       })
@@ -591,16 +606,34 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="regReferencias">Contacto de Referencia</Label>
-              <Input
-                id="regReferencias"
-                placeholder="Ej. María Pérez - 0414-1234567 (Hermana)"
-                value={regReferencias}
-                onChange={(e) => setRegReferencias(e.target.value)}
-                required
-                disabled={loading}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="regRefPhone">Teléfono de Referencia</Label>
+                <Input
+                  id="regRefPhone"
+                  type="tel"
+                  placeholder="Ej. 0412-1234567"
+                  value={regRefPhone}
+                  onChange={(e) => handleRegRefPhoneChange(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="regRefRelacion">Relación</Label>
+                <select
+                  id="regRefRelacion"
+                  value={regRefRelacion}
+                  onChange={(e) => setRegRefRelacion(e.target.value)}
+                  disabled={loading}
+                  className="w-full bg-black/45 border border-border/60 hover:border-primary/40 focus:border-primary focus:ring-1 focus:ring-primary/20 text-foreground py-2.5 px-3.5 text-sm rounded-xl shadow-inner outline-none transition-colors"
+                >
+                  <option value="Familiar" className="bg-zinc-950 text-foreground">Familiar</option>
+                  <option value="Amigo" className="bg-zinc-950 text-foreground">Amigo</option>
+                  <option value="Empleador" className="bg-zinc-950 text-foreground">Empleador</option>
+                  <option value="Otro" className="bg-zinc-950 text-foreground">Otro</option>
+                </select>
+              </div>
             </div>
 
             {/* Subida de Cédula */}
