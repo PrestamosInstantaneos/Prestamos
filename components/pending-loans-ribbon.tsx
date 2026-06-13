@@ -208,12 +208,14 @@ export function PendingLoansRibbon() {
                           </div>
                         )}
                         <div className="flex justify-between items-center">
-                          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Fechas de Pago:</span>
-                          <span className="font-semibold text-white text-right font-mono max-w-[200px] break-words">{item.fechasPago}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
                           <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total a Pagar:</span>
                           <span className="font-heading font-extrabold text-emerald-400 text-lg">{item.totalPagar}</span>
+                        </div>
+                        <div className="flex flex-col gap-1 border-t border-white/5 pt-2.5 mt-1">
+                          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Fechas de Pago:</span>
+                          <span className="font-semibold text-white font-mono text-xs bg-black/25 px-2 py-1.5 rounded-md leading-relaxed select-all">
+                            {item.fechasPago}
+                          </span>
                         </div>
                         
                         <div className="pt-2.5 border-t border-white/5 space-y-2 text-xs">

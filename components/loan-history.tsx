@@ -413,12 +413,14 @@ export function LoanHistory() {
                           </div>
                         )}
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground font-medium">Fecha(s) Pago:</span>
-                          <span className="font-semibold text-white font-mono">{loan.fechasPago}</span>
-                        </div>
-                        <div className="flex justify-between">
                           <span className="text-muted-foreground font-medium">Total a Pagar:</span>
                           <span className="font-semibold text-emerald-400 font-heading">{loan.totalPagar}</span>
+                        </div>
+                        <div className="flex flex-col gap-1 pt-2 border-t border-white/5 mt-1">
+                          <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Fecha(s) de Pago:</span>
+                          <span className="font-semibold text-white font-mono text-[11px] bg-black/25 px-2 py-1.5 rounded-md leading-relaxed select-all">
+                            {loan.fechasPago}
+                          </span>
                         </div>
                       </div>
                     </div>
