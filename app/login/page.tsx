@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Lock, Phone } from "lucide-react"
+import { ArrowLeft, Lock, Phone, X, FileText, ShieldCheck } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
 import { CunaguaroLogo } from "@/components/cunaguaro-logo"
@@ -88,6 +88,7 @@ export default function LoginPage() {
   const [regCedulaPhoto, setRegCedulaPhoto] = useState<string | null>(null)
   const [regTerms, setRegTerms] = useState(false)
   const [showExamplePhoto, setShowExamplePhoto] = useState(false)
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false)
 
   // Check if already logged in
   useEffect(() => {
@@ -680,8 +681,9 @@ export default function LoginPage() {
             </div>
 
             {/* Checkbox de Términos y Condiciones */}
-            <label className="flex items-start gap-3 text-xs text-muted-foreground select-none cursor-pointer pt-2">
+            <div className="flex items-start gap-3 text-xs text-muted-foreground select-none pt-2">
               <input
+                id="regTerms"
                 type="checkbox"
                 checked={regTerms}
                 onChange={(e) => setRegTerms(e.target.checked)}
@@ -689,10 +691,19 @@ export default function LoginPage() {
                 className="mt-0.5 h-4 w-4 accent-primary cursor-pointer"
                 required
               />
-              <span>
-                Acepto los términos y condiciones y autorizo la verificación de mis datos.
-              </span>
-            </label>
+              <label htmlFor="regTerms" className="cursor-pointer leading-normal">
+                Acepto los{" "}
+                <button
+                  type="button"
+                  onClick={() => setIsTermsModalOpen(true)}
+                  className="underline text-primary hover:text-primary/80 font-semibold inline-block cursor-pointer"
+                >
+                  términos y condiciones
+                </button>{" "}
+                y autorizo a{" "}
+                <strong className="text-foreground">EMPRENDIMIENTO ISAAC CANACHE</strong> (RIF J508167368) a la verificación de mis datos según las condiciones legales.
+              </label>
+            </div>
 
             {/* Botones de acción Paso 2 */}
             <div className="flex gap-4 mt-6">
@@ -732,6 +743,115 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* Modal de Términos y Condiciones */}
+      {isTermsModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-foreground flex flex-col max-h-[85vh]">
+            
+            {/* Header del modal */}
+            <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-4 shrink-0">
+              <div className="flex items-center gap-2 text-primary">
+                <ShieldCheck className="h-5 w-5" />
+                <h3 className="text-sm font-bold font-heading uppercase tracking-wider">
+                  Términos y Condiciones Legales
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTermsModalOpen(false)}
+                className="rounded-full p-1 text-muted-foreground hover:bg-white/5 hover:text-white transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Contenido legal con scroll */}
+            <div className="flex-1 overflow-y-auto pr-2 text-xs text-muted-foreground space-y-4 leading-relaxed scrollbar-thin">
+              <p className="font-semibold text-foreground text-center">
+                CONTRATO DE TÉRMINOS Y CONDICIONES DE USO Y SERVICIO
+              </p>
+              <p>
+                Este documento constituye el contrato de Términos y Condiciones que regulan el acceso y uso del sitio web "RESUELVE YA!" y los servicios de simulación y solicitud de créditos comerciales y micro-créditos otorgados por el titular <strong className="text-foreground">EMPRENDIMIENTO ISAAC CANACHE</strong>, titular del <strong className="text-foreground">RIF J508167368</strong>, con domicilio fiscal en Calle Principal Guatire - Guarenas, frente a Repuestos Charito, Casa Nro 3, Barrio Las Barrancas, Guatire, Estado Miranda, Zona Postal 1221, en adelante denominado <strong className="text-foreground">"LA EMPRESA"</strong> o <strong className="text-foreground">"EL ADMINISTRADOR"</strong>.
+              </p>
+
+              <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
+                1. OBJETO Y REGISTRO
+              </h4>
+              <p>
+                El usuario declara tener capacidad civil para obligarse y acepta libremente afiliarse para hacer uso de la plataforma de solicitud de micro-préstamos. El registro requiere la veracidad e integridad absoluta de la información ingresada.
+              </p>
+
+              <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
+                2. DERECHO DE SUSPENSIÓN, BLOQUEO Y ELIMINACIÓN DE CUENTAS
+              </h4>
+              <p>
+                <strong className="text-foreground">LA EMPRESA</strong> se reserva el derecho absoluto, unilateral e inapelable de suspender de forma temporal, bloquear de manera indefinida o eliminar definitivamente la cuenta de cualquier usuario, así como anular cualquier solicitud de crédito en curso, si se constatan:
+              </p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Irregularidades en la autenticación o datos de identidad falsos o dudosos (incluyendo la foto de la cédula cargada).</li>
+                <li>Uso indebido o abusivo del servicio (denegación de servicio, bots, escaneos no autorizados, etc.).</li>
+                <li>Incumplimiento contractual de los compromisos de pago adquiridos o mora continuada.</li>
+                <li>Preceptos legales nacionales vigentes que obliguen a suspender la cuenta para evitar fraudes u operaciones ilícitas.</li>
+              </ul>
+
+              <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
+                3. VERIFICACIÓN LEGAL DE DATOS
+              </h4>
+              <p>
+                Al registrarse, el usuario autoriza expresamente a <strong className="text-foreground">EMPRENDIMIENTO ISAAC CANACHE</strong> a corroborar y auditar la información provista, incluyendo la realización de llamadas de verificación a referencias personales y comerciales.
+              </p>
+
+              <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
+                4. INFORMACIÓN CORPORATIVA Y DE CONTACTO
+              </h4>
+              <p>
+                Para respaldar la transparencia comercial, el usuario puede descargar o visualizar las credenciales fiscales oficiales de la empresa a través del documento del RIF jurídico oficial emitido por el SENIAT.
+              </p>
+
+              <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
+                5. DOMICILIO ESPECIAL Y JURISDICCIÓN
+              </h4>
+              <p>
+                Para todos los efectos derivados de estos términos, se elige como domicilio exclusivo y excluyente a la ciudad de Guatire - Guarenas, Estado Miranda, sometiéndose expresamente a la jurisdicción de sus tribunales competentes.
+              </p>
+            </div>
+
+            {/* Footer del modal */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/5 pt-4 mt-4 shrink-0">
+              <a
+                href="/RIF-JURIDICO.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-primary hover:underline font-semibold"
+              >
+                <FileText className="h-4 w-4" />
+                <span>Ver RIF Oficial (PDF) ↗</span>
+              </a>
+              <div className="flex gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsTermsModalOpen(false)}
+                  className="px-4 py-2 border border-white/10 hover:bg-white/5 text-xs font-semibold rounded-lg text-white transition-colors"
+                >
+                  Cerrar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegTerms(true)
+                    setIsTermsModalOpen(false)
+                  }}
+                  className="px-4 py-2 bg-primary hover:opacity-90 text-xs font-bold text-primary-foreground rounded-lg transition-opacity"
+                >
+                  Aceptar y Cerrar
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   )
 }
