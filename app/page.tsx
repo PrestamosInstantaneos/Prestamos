@@ -9,7 +9,9 @@ import { ContactSection } from "@/components/contact-section"
 import { SiteFooter } from "@/components/site-footer"
 
 export default function Page() {
+  // Despliegue de producción post-rollback
   return (
+
     <main className="relative min-h-screen bg-background">
       <SiteHeader />
       <Hero />
