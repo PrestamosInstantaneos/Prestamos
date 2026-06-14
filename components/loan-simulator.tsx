@@ -49,9 +49,24 @@ function formatBs(value: number) {
   }).format(value)
 }
 
+function qualifiesForDiscount(date: Date | null, today: Date): boolean {
+  if (!date || !isValid(date)) return false;
+
+  const dayOfMonth = date.getDate();
+  const nextDay = addDays(date, 1);
+  const isLastDay = nextDay.getDate() === 1;
+  const is15th = dayOfMonth === 15;
+
+  if (!is15th && !isLastDay) return false;
+
+  const diff = differenceInDays(date, today);
+  return diff >= 0 && diff <= 7;
+}
+
 /**
  * Calcula el préstamo con un interés fijo de 0.8 USD por cada 1000 Bs.
  * Retorna el monto del préstamo en USD, el interés en USD, el total a pagar en USD y Bs, y los días.
+ * Aplica un 10% de descuento sobre el interés si la fecha de pago está a 1 semana o menos del 15 o fin de mes.
  */
 function calculateLoan(
   amount: number,
@@ -73,6 +88,14 @@ function calculateLoan(
     firstPaymentDays: 0,
     lastPaymentDays: 0,
     totalDaysBetweenInstallments: 0,
+    hasDiscount: false,
+    originalInterestUsd: 0,
+    originalTotalPaymentUsd: 0,
+    originalTotalPaymentBs: 0,
+    originalFirstInstallmentAmountUsd: 0,
+    originalFirstInstallmentAmountBs: 0,
+    originalLastInstallmentAmountUsd: 0,
+    originalLastInstallmentAmountBs: 0,
   };
 
   if (paymentType === 'others') {
@@ -86,8 +109,27 @@ function calculateLoan(
 
   const totalInterestUsd = (amount / 1000) * 0.8;
   const loanAmountUsd = amount / bcvUsd;
-  const totalAmountToPayUsd = loanAmountUsd + totalInterestUsd;
-  const totalAmountToPayBs = totalAmountToPayUsd * bcvUsd;
+  const defaultTotalAmountToPayUsd = loanAmountUsd + totalInterestUsd;
+  const defaultTotalAmountToPayBs = defaultTotalAmountToPayUsd * bcvUsd;
+
+  let hasDiscount = false;
+  let finalInterestUsd = totalInterestUsd;
+
+  if (paymentType === 'total') {
+    if (firstPaymentDate && qualifiesForDiscount(firstPaymentDate, today)) {
+      hasDiscount = true;
+      finalInterestUsd = totalInterestUsd * 0.9;
+    }
+  } else if (paymentType === 'installments') {
+    if ((firstPaymentDate && qualifiesForDiscount(firstPaymentDate, today)) || 
+        (lastPaymentDate && qualifiesForDiscount(lastPaymentDate, today))) {
+      hasDiscount = true;
+      finalInterestUsd = totalInterestUsd * 0.9;
+    }
+  }
+
+  const finalTotalAmountToPayUsd = loanAmountUsd + finalInterestUsd;
+  const finalTotalAmountToPayBs = finalTotalAmountToPayUsd * bcvUsd;
 
   if (paymentType === 'total') {
     if (!firstPaymentDate || !isValid(firstPaymentDate)) {
@@ -102,16 +144,24 @@ function calculateLoan(
 
     return {
       loanAmountUsd,
-      interestUsd: totalInterestUsd,
-      totalPaymentUsd: totalAmountToPayUsd,
-      totalPaymentBs: totalAmountToPayBs,
+      interestUsd: finalInterestUsd,
+      totalPaymentUsd: finalTotalAmountToPayUsd,
+      totalPaymentBs: finalTotalAmountToPayBs,
       firstPaymentDays: days,
       lastPaymentDays: days, // Same for total payment
       totalDaysBetweenInstallments: 0,
-      firstInstallmentAmountUsd: totalAmountToPayUsd,
-      firstInstallmentAmountBs: totalAmountToPayBs,
+      firstInstallmentAmountUsd: finalTotalAmountToPayUsd,
+      firstInstallmentAmountBs: finalTotalAmountToPayBs,
       lastInstallmentAmountUsd: 0, // Not applicable for total payment
       lastInstallmentAmountBs: 0, // Not applicable for total payment
+      hasDiscount,
+      originalInterestUsd: totalInterestUsd,
+      originalTotalPaymentUsd: defaultTotalAmountToPayUsd,
+      originalTotalPaymentBs: defaultTotalAmountToPayBs,
+      originalFirstInstallmentAmountUsd: defaultTotalAmountToPayUsd,
+      originalFirstInstallmentAmountBs: defaultTotalAmountToPayBs,
+      originalLastInstallmentAmountUsd: 0,
+      originalLastInstallmentAmountBs: 0,
     };
   } else { // paymentType === 'installments'
     if (!firstPaymentDate || !isValid(firstPaymentDate) || !lastPaymentDate || !isValid(lastPaymentDate)) {
@@ -130,21 +180,32 @@ function calculateLoan(
       return defaultReturn;
     }
 
-    const installmentAmountUsd = totalAmountToPayUsd / 2;
-    const installmentAmountBs = totalAmountToPayBs / 2;
+    const finalInstallmentAmountUsd = finalTotalAmountToPayUsd / 2;
+    const finalInstallmentAmountBs = finalTotalAmountToPayBs / 2;
+
+    const originalInstallmentAmountUsd = defaultTotalAmountToPayUsd / 2;
+    const originalInstallmentAmountBs = defaultTotalAmountToPayBs / 2;
 
     return {
       loanAmountUsd,
-      interestUsd: totalInterestUsd,
-      totalPaymentUsd: totalAmountToPayUsd,
-      totalPaymentBs: totalAmountToPayBs,
+      interestUsd: finalInterestUsd,
+      totalPaymentUsd: finalTotalAmountToPayUsd,
+      totalPaymentBs: finalTotalAmountToPayBs,
       firstPaymentDays: firstDays,
       lastPaymentDays: lastDays,
       totalDaysBetweenInstallments: daysBetweenInstallments,
-      firstInstallmentAmountUsd: installmentAmountUsd,
-      firstInstallmentAmountBs: installmentAmountBs,
-      lastInstallmentAmountUsd: installmentAmountUsd,
-      lastInstallmentAmountBs: installmentAmountBs,
+      firstInstallmentAmountUsd: finalInstallmentAmountUsd,
+      firstInstallmentAmountBs: finalInstallmentAmountBs,
+      lastInstallmentAmountUsd: finalInstallmentAmountUsd,
+      lastInstallmentAmountBs: finalInstallmentAmountBs,
+      hasDiscount,
+      originalInterestUsd: totalInterestUsd,
+      originalTotalPaymentUsd: defaultTotalAmountToPayUsd,
+      originalTotalPaymentBs: defaultTotalAmountToPayBs,
+      originalFirstInstallmentAmountUsd: originalInstallmentAmountUsd,
+      originalFirstInstallmentAmountBs: originalInstallmentAmountBs,
+      originalLastInstallmentAmountUsd: originalInstallmentAmountUsd,
+      originalLastInstallmentAmountBs: originalInstallmentAmountBs,
     };
   }
 }
@@ -186,7 +247,7 @@ export function LoanSimulator() {
           cedula: user.cedula,
           telefono: user.telefono,
           monto: paymentType === 'others' ? "Otros Montos (Monto a convenir)" : amount,
-          modalidad: paymentType === 'total' ? "Pago Total" : paymentType === 'installments' ? "Cuotas" : "Otros Montos",
+          modalidad: paymentType === 'total' ? ("Pago Total" + (hasDiscount ? " (Descuento 10%)" : "")) : paymentType === 'installments' ? ("Cuotas" + (hasDiscount ? " (Descuento 10%)" : "")) : "Otros Montos",
           fechas: datesText,
           bcvRate: bcvUsd,
           totalPagar: paymentType === 'others' ? "A convenir" : totalPaymentBs,
@@ -299,6 +360,14 @@ export function LoanSimulator() {
     firstInstallmentAmountBs,
     lastInstallmentAmountUsd,
     lastInstallmentAmountBs,
+    hasDiscount,
+    originalInterestUsd,
+    originalTotalPaymentUsd,
+    originalTotalPaymentBs,
+    originalFirstInstallmentAmountUsd,
+    originalFirstInstallmentAmountBs,
+    originalLastInstallmentAmountUsd,
+    originalLastInstallmentAmountBs,
   } = useMemo(
     () => calculateLoan(
       amount,
@@ -706,22 +775,53 @@ export function LoanSimulator() {
                             {lastInstallmentDate && isValid(lastInstallmentDate) ? format(lastInstallmentDate, "dd/MM/yyyy", { locale: es }) : "Fecha inválida"}
                           </span>
                         </div>
-                        <div className="flex justify-between text-sm items-baseline mt-2 pt-2 border-t border-dashed border-border/40">
+                        <div className="flex justify-between text-sm items-center mt-2 pt-2 border-t border-dashed border-border/40">
                           <span className="text-muted-foreground text-sm font-semibold uppercase tracking-wider">Por cuota (2 cuotas)</span>
-                          <span className="font-heading text-lg sm:text-xl font-extrabold text-primary">
-                            Bs. {formatBs(totalPaymentBs / 2)}
-                          </span>
+                          {hasDiscount ? (
+                            <div className="text-right flex flex-col items-end">
+                              <span className="text-xs text-muted-foreground line-through font-medium">
+                                Bs. {formatBs(originalTotalPaymentBs / 2)}
+                              </span>
+                              <span className="font-heading text-lg sm:text-xl font-extrabold text-emerald-500">
+                                Bs. {formatBs(totalPaymentBs / 2)}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="font-heading text-lg sm:text-xl font-extrabold text-primary">
+                              Bs. {formatBs(totalPaymentBs / 2)}
+                            </span>
+                          )}
                         </div>
                       </>
                     )}
                   </>
                 )}
 
-                <div className="flex justify-between border-t border-border pt-4 text-base">
-                  <span className="font-bold text-foreground">Total a pagar</span>
-                  <span className="font-heading font-extrabold text-foreground">
-                    {paymentType === 'others' ? "A convenir" : `Bs. ${formatBs(totalPaymentBs)}`}
-                  </span>
+                <div className="flex justify-between border-t border-border pt-4 text-base items-center">
+                  <div className="flex flex-col text-left">
+                    <span className="font-bold text-foreground">Total a pagar</span>
+                    {hasDiscount && (
+                      <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider animate-pulse mt-0.5">
+                        ¡DESCUENTO DEL 10%!
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    {hasDiscount ? (
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs text-muted-foreground line-through font-medium">
+                          Bs. {formatBs(originalTotalPaymentBs)}
+                        </span>
+                        <span className="font-heading font-extrabold text-emerald-500 text-lg">
+                          Bs. {formatBs(totalPaymentBs)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="font-heading font-extrabold text-foreground">
+                        {paymentType === 'others' ? "A convenir" : `Bs. ${formatBs(totalPaymentBs)}`}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -789,19 +889,45 @@ export function LoanSimulator() {
                     </span>
                   </div>
                   {paymentType !== 'others' && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Total a pagar:</span>
-                      <span className="font-semibold text-foreground text-primary font-heading">
-                        Bs. {formatBs(totalPaymentBs)}
-                      </span>
+                      {hasDiscount ? (
+                        <div className="text-right">
+                          <span className="text-xs text-muted-foreground line-through font-medium mr-2">
+                            Bs. {formatBs(originalTotalPaymentBs)}
+                          </span>
+                          <span className="font-semibold text-emerald-500 font-heading">
+                            Bs. {formatBs(totalPaymentBs)}
+                          </span>
+                          <span className="block text-[9px] font-bold text-emerald-500 uppercase tracking-wider animate-pulse">
+                            ¡DESCUENTO DEL 10%!
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-semibold text-foreground text-primary font-heading">
+                          Bs. {formatBs(totalPaymentBs)}
+                        </span>
+                      )}
                     </div>
                   )}
                   {paymentType === 'installments' && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Monto por cuota:</span>
-                      <span className="font-semibold text-foreground text-primary font-heading">
-                        Bs. {formatBs(totalPaymentBs / 2)} (2 cuotas)
-                      </span>
+                      {hasDiscount ? (
+                        <div className="text-right">
+                          <span className="text-xs text-muted-foreground line-through font-medium mr-2">
+                            Bs. {formatBs(originalTotalPaymentBs / 2)}
+                          </span>
+                          <span className="font-semibold text-emerald-500 font-heading">
+                            Bs. {formatBs(totalPaymentBs / 2)}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground ml-1">(2 cuotas)</span>
+                        </div>
+                      ) : (
+                        <span className="font-semibold text-foreground text-primary font-heading">
+                          Bs. {formatBs(totalPaymentBs / 2)} (2 cuotas)
+                        </span>
+                      )}
                     </div>
                   )}
                   <div className="flex justify-between">
