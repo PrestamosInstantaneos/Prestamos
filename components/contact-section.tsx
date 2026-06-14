@@ -1,6 +1,7 @@
 "use client"
 
 import { MessageSquare, Phone, ExternalLink } from "lucide-react"
+import { ScrollReveal } from "./scroll-reveal"
 
 export function ContactSection() {
   return (
@@ -24,9 +25,11 @@ export function ContactSection() {
             <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               ¿Tienes dudas o necesitas ayuda?
             </h2>
-            <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-              Nuestro equipo está a tu disposición para asesorarte. Contáctanos directamente a través de WhatsApp para recibir atención personalizada y aclarar cualquier inquietud técnica o comercial.
-            </p>
+            <ScrollReveal>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
+                Nuestro equipo está a tu disposición para asesorarte. Contáctanos directamente a través de WhatsApp para recibir atención personalizada y aclarar cualquier inquietud técnica o comercial.
+              </p>
+            </ScrollReveal>
           </div>
 
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">

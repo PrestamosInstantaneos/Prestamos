@@ -4,6 +4,7 @@ import Image from "next/image"
 import { useState, useEffect } from "react"
 import useSWR from "swr"
 import { getLevelGlowClass, isLevelsUser } from "./levels-ticker"
+import { ScrollReveal } from "./scroll-reveal"
 
 export function Hero() {
   const [user, setUser] = useState<any | null>(null)
@@ -99,9 +100,11 @@ export function Hero() {
             </div>
           )}
           {!user && (
-            <p className="mt-6 max-w-md text-sm sm:text-base leading-relaxed text-slate-200 drop-shadow-md">
-              Solicita el dinero que necesitas en minutos. Aprobación rápida, tasas competitivas y desembolso directo a tu cuenta sin papeleo interminable.
-            </p>
+            <ScrollReveal>
+              <p className="mt-6 max-w-md text-sm sm:text-base leading-relaxed text-slate-200 drop-shadow-md">
+                Solicita el dinero que necesitas en minutos. Aprobación rápida, tasas competitivas y desembolso directo a tu cuenta sin papeleo interminable.
+              </p>
+            </ScrollReveal>
           )}
 
           <div className="mt-9 flex flex-wrap items-center justify-start gap-4">

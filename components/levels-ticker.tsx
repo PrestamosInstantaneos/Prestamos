@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import useSWR from "swr"
 import Image from "next/image"
 import { X, CheckCircle2, Lock, Star, Sparkles } from "lucide-react"
+import { ScrollReveal } from "./scroll-reveal"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
@@ -220,9 +221,11 @@ export function LevelsTicker() {
         <h2 className="font-heading text-2xl font-bold tracking-tight text-white sm:text-3xl select-none">
           Niveles de Socio y Recompensas
         </h2>
-        <p className="mt-2 text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto select-none">
-          Haz clic en cualquier ficha de nivel para conocer qué necesitas para entrar y cuáles son sus descuentos y ventajas exclusivas.
-        </p>
+        <ScrollReveal>
+          <p className="mt-2 text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto select-none">
+            Haz clic en cualquier ficha de nivel para conocer qué necesitas para entrar y cuáles son sus descuentos y ventajas exclusivas.
+          </p>
+        </ScrollReveal>
       </div>
 
       {/* Marquesina horizontal de fichas */}

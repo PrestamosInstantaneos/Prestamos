@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react"
 import useSWR from "swr"
 import { Calendar, ChevronLeft, ChevronRight, SlidersHorizontal, Clock, CheckCircle2, XCircle, Info, RefreshCw } from "lucide-react"
+import { ScrollReveal } from "./scroll-reveal"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
@@ -231,9 +232,11 @@ export function LoanHistory() {
             <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Registro de Préstamos
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground max-w-xl">
-              Revisa el estado de todas tus solicitudes anteriores, filtra por modalidad o estado y ordénalas según necesites.
-            </p>
+            <ScrollReveal>
+              <p className="mt-2 text-sm text-muted-foreground max-w-xl">
+                Revisa el estado de todas tus solicitudes anteriores, filtra por modalidad o estado y ordénalas según necesites.
+              </p>
+            </ScrollReveal>
           </div>
           
           <div className="flex gap-2.5 self-start md:self-auto">

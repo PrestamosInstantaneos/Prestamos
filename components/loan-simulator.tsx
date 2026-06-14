@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button" // Importar Button
 import { format, addDays, differenceInDays, isValid, parse } from "date-fns"
 import { es } from "date-fns/locale"
 import { CheckCircle2, X, MessageSquare } from "lucide-react"
+import { ScrollReveal } from "./scroll-reveal"
 
 
 type BcvRate = {
@@ -535,10 +536,12 @@ export function LoanSimulator() {
           <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground text-balance sm:text-3xl md:text-4xl">
             Calcula tu cuota mensual
           </h2>
-          <p className="mt-4 text-sm sm:text-base leading-relaxed text-muted-foreground">
-            Ajusta el monto y la fecha de cancelación para ver tu cuota estimada. Sin
-            compromiso y totalmente transparente.
-          </p>
+          <ScrollReveal>
+            <p className="mt-4 text-sm sm:text-base leading-relaxed text-muted-foreground">
+              Ajusta el monto y la fecha de cancelación para ver tu cuota estimada. Sin
+              compromiso y totalmente transparente.
+            </p>
+          </ScrollReveal>
           
           {/* Tasa del dólar oficial (BCV) flotante */}
           <div className="mt-6 inline-flex items-center gap-3 rounded-full border border-border bg-card/30 backdrop-blur-sm px-4 py-2.5 shadow-md">
