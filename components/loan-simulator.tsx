@@ -118,13 +118,13 @@ function calculateLoan(
   if (paymentType === 'total') {
     if (firstPaymentDate && qualifiesForDiscount(firstPaymentDate, today)) {
       hasDiscount = true;
-      finalInterestUsd = totalInterestUsd * 0.9;
+      finalInterestUsd = totalInterestUsd * 0.85;
     }
   } else if (paymentType === 'installments') {
     if ((firstPaymentDate && qualifiesForDiscount(firstPaymentDate, today)) || 
         (lastPaymentDate && qualifiesForDiscount(lastPaymentDate, today))) {
       hasDiscount = true;
-      finalInterestUsd = totalInterestUsd * 0.9;
+      finalInterestUsd = totalInterestUsd * 0.85;
     }
   }
 
@@ -247,7 +247,7 @@ export function LoanSimulator() {
           cedula: user.cedula,
           telefono: user.telefono,
           monto: paymentType === 'others' ? "Otros Montos (Monto a convenir)" : amount,
-          modalidad: paymentType === 'total' ? ("Pago Total" + (hasDiscount ? " (Descuento 10%)" : "")) : paymentType === 'installments' ? ("Cuotas" + (hasDiscount ? " (Descuento 10%)" : "")) : "Otros Montos",
+          modalidad: paymentType === 'total' ? ("Pago Total" + (hasDiscount ? " (Descuento 15%)" : "")) : paymentType === 'installments' ? ("Cuotas" + (hasDiscount ? " (Descuento 15%)" : "")) : "Otros Montos",
           fechas: datesText,
           bcvRate: bcvUsd,
           totalPagar: paymentType === 'others' ? "A convenir" : totalPaymentBs,
@@ -802,7 +802,7 @@ export function LoanSimulator() {
                     <span className="font-bold text-foreground">Total a pagar</span>
                     {hasDiscount && (
                       <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider animate-pulse mt-0.5">
-                        ¡DESCUENTO DEL 10%!
+                        ¡DESCUENTO DEL 15%!
                       </span>
                     )}
                   </div>
@@ -900,7 +900,7 @@ export function LoanSimulator() {
                             Bs. {formatBs(totalPaymentBs)}
                           </span>
                           <span className="block text-[9px] font-bold text-emerald-500 uppercase tracking-wider animate-pulse">
-                            ¡DESCUENTO DEL 10%!
+                            ¡DESCUENTO DEL 15%!
                           </span>
                         </div>
                       ) : (
