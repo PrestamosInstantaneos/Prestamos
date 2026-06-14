@@ -122,12 +122,6 @@ function calculateLoan(
       hasDiscount = true;
       finalInterestUsd = totalInterestUsd * 0.85;
     }
-  } else if (paymentType === 'installments') {
-    if ((firstPaymentDate && qualifiesForDiscount(firstPaymentDate, today)) || 
-        (lastPaymentDate && qualifiesForDiscount(lastPaymentDate, today))) {
-      hasDiscount = true;
-      finalInterestUsd = totalInterestUsd * 0.85;
-    }
   }
 
   const finalTotalAmountToPayUsd = loanAmountUsd + finalInterestUsd;
