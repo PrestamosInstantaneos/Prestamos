@@ -52,6 +52,9 @@ function formatBs(value: number) {
 function qualifiesForDiscount(date: Date | null, today: Date): boolean {
   if (!date || !isValid(date)) return false;
 
+  const diff = differenceInDays(date, today);
+  if (diff === 0) return true; // Descuento si es para hoy mismo
+
   const dayOfMonth = date.getDate();
   const nextDay = addDays(date, 1);
   const isLastDay = nextDay.getDate() === 1;
@@ -59,14 +62,13 @@ function qualifiesForDiscount(date: Date | null, today: Date): boolean {
 
   if (!is15th && !isLastDay) return false;
 
-  const diff = differenceInDays(date, today);
   return diff >= 0 && diff <= 7;
 }
 
 /**
  * Calcula el préstamo con un interés fijo de 0.8 USD por cada 1000 Bs.
  * Retorna el monto del préstamo en USD, el interés en USD, el total a pagar en USD y Bs, y los días.
- * Aplica un 10% de descuento sobre el interés si la fecha de pago está a 1 semana o menos del 15 o fin de mes.
+ * Aplica un 15% de descuento sobre el interés si la fecha de pago está a 1 semana o menos del 15 o fin de mes, o es para hoy mismo.
  */
 function calculateLoan(
   amount: number,
