@@ -59,9 +59,9 @@ const levelsData: LevelItem[] = [
   },
   {
     level: 4,
-    animalName: "Cachicamo",
-    animal: "cachicamo",
-    badgeUrl: "/images/levels/cachicamo.png",
+    animalName: "Delfín Rosado",
+    animal: "delfin",
+    badgeUrl: "/images/levels/delfin.png",
     requirement: "Haber pagado $150 USD",
     requirementAmount: 150,
     benefits: [
@@ -146,7 +146,7 @@ export function getLevelGlowClass(level: number): string {
       return "border-emerald-500/50 bg-emerald-950/10 shadow-[0_0_12px_rgba(16,185,129,0.35)]"
     case 3: // Guacamaya
       return "border-cyan-400/50 bg-cyan-950/10 shadow-[0_0_15px_rgba(34,211,238,0.45)]"
-    case 4: // Cachicamo
+    case 4: // Delfin
       return "border-amber-600/50 bg-amber-950/10 shadow-[0_0_15px_rgba(217,119,6,0.45)]"
     case 5: // Chiguire
       return "border-purple-500/50 bg-purple-950/10 shadow-[0_0_18px_rgba(168,85,247,0.55)] animate-pulse"

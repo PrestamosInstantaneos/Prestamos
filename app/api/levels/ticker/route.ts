@@ -68,7 +68,7 @@ const animalMap: Record<number, string> = {
   1: "caracol",
   2: "iguana",
   3: "guacamaya",
-  4: "cachicamo",
+  4: "delfin",
   5: "chiguire",
   6: "venado",
   7: "aguila",
@@ -80,7 +80,7 @@ const animalNames: Record<number, string> = {
   1: "Caracol",
   2: "Iguana",
   3: "Guacamaya",
-  4: "Cachicamo",
+  4: "Delfín Rosado",
   5: "Chigüire",
   6: "Venado",
   7: "Águila Arpía",
@@ -343,10 +343,10 @@ function getMockUsers() {
     {
       name: "Gabriela F.",
       level: 4,
-      animal: "cachicamo",
-      animalName: "Cachicamo",
+      animal: "delfin",
+      animalName: "Delfín Rosado",
       totalPaidUsd: 160.00,
-      badgeUrl: "/images/levels/cachicamo.png"
+      badgeUrl: "/images/levels/delfin.png"
     }
   ]
 }
