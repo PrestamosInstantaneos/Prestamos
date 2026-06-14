@@ -5,7 +5,7 @@ import { Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CunaguaroLogo } from "./cunaguaro-logo"
 import useSWR from "swr"
-import { getLevelGlowClass, LevelsTicker } from "./levels-ticker"
+import { getLevelGlowClass, LevelsTicker, isLevelsUser } from "./levels-ticker"
 
 const navLinks = [
   { label: "INICIO", href: "#inicio" },
@@ -39,7 +39,7 @@ export function SiteHeader() {
     }
   }, [])
 
-  const { data } = useSWR(user ? "/api/my-loans" : null, (url) => fetch(url).then((res) => res.json()))
+  const { data } = useSWR(user && isLevelsUser(user.telefono) ? "/api/my-loans" : null, (url) => fetch(url).then((res) => res.json()))
   const levelInfo = data?.levelInfo
 
   async function handleLogout() {
@@ -141,7 +141,7 @@ export function SiteHeader() {
           {user ? (
             <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-border">
               <div className="flex items-center gap-2 px-3">
-                {levelInfo && (
+                {levelInfo && isLevelsUser(user.telefono) && (
                   <div className={`relative w-6 h-6 rounded-full border flex items-center justify-center overflow-hidden shrink-0 ${getLevelGlowClass(levelInfo.level)}`}>
                     <img
                       src={levelInfo.badgeUrl}
@@ -153,7 +153,7 @@ export function SiteHeader() {
                 <span className="text-xs font-semibold text-foreground uppercase">
                   HOLA, {user.nombres}
                 </span>
-                {levelInfo && (
+                {levelInfo && isLevelsUser(user.telefono) && (
                   <span className="text-[10px] text-primary font-extrabold tracking-wider uppercase ml-1">
                     ({levelInfo.animalName})
                   </span>

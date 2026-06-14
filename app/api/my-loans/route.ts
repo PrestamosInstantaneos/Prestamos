@@ -294,6 +294,13 @@ export async function GET(req: NextRequest) {
             loan.estado.toLowerCase() !== "rechazado"
         )
 
+    const userPhoneClean = userPhone ? userPhone.replace(/\D/g, "") : ""
+    const isIsaac = userPhoneClean === "4125654081" || userPhoneClean === "04125654081"
+
+    if (!isIsaac) {
+      return NextResponse.json({ loans: loansToReturn })
+    }
+
     // Calcular nivel basándose en todos los préstamos pagados
     const paidLoans = combinedLoans.filter((loan) => loan.estado.toLowerCase() === "pagado")
     let totalPaidUsd = 0

@@ -163,6 +163,12 @@ export function getLevelGlowClass(level: number): string {
   }
 }
 
+export function isLevelsUser(phone?: string): boolean {
+  if (!phone) return false
+  const cleanPhone = phone.replace(/\D/g, "")
+  return cleanPhone === "4125654081" || cleanPhone === "04125654081"
+}
+
 export function LevelsTicker() {
   const [selectedLevel, setSelectedLevel] = useState<LevelItem | null>(null)
   const [user, setUser] = useState<any | null>(null)
@@ -189,13 +195,17 @@ export function LevelsTicker() {
   }, [])
 
   // Consultar el endpoint de préstamos para obtener el nivel actual del usuario logueado
-  const { data: loansData } = useSWR(user ? "/api/my-loans" : null, fetcher, {
+  const { data: loansData } = useSWR(user && isLevelsUser(user.telefono) ? "/api/my-loans" : null, fetcher, {
     revalidateOnFocus: false,
     refreshInterval: 30000
   })
 
   const userLevel = loansData?.levelInfo?.level || 0
   const userTotalPaid = loansData?.levelInfo?.totalPaidUsd || 0
+
+  if (!user || !isLevelsUser(user.telefono)) {
+    return null
+  }
 
   // Duplicar el array de niveles estáticos para que el carrusel infinito sea fluido
   const marqueeItems = [...levelsData, ...levelsData, ...levelsData]
