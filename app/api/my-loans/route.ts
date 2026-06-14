@@ -79,6 +79,31 @@ function parseVenezuelaTimestamp(dateStr: string): number {
   }
 }
 
+function getExchangeRateForDate(dateStr: string, tasaBcvStr?: string): number {
+  if (tasaBcvStr && tasaBcvStr !== "N/A" && tasaBcvStr.trim() !== "") {
+    const parsed = parseFloat(tasaBcvStr.replace(/,/g, "."));
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  if (dateStr) {
+    if (dateStr.includes("2025")) {
+      return 40.0;
+    }
+  }
+  return 587.0; // Fallback rate (current June 2026 rate is around 587)
+}
+
+function getLoanAmountInUsd(montoStr: string, dateStr: string, tasaBcvStr?: string): number {
+  if (!montoStr) return 0;
+  const isDollar = montoStr.includes("$");
+  const amount = parseAmount(montoStr);
+  if (isDollar) {
+    return amount;
+  } else {
+    const rate = getExchangeRateForDate(dateStr, tasaBcvStr);
+    return rate > 0 ? amount / rate : 0;
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const token = req.cookies.get("auth_token")?.value
@@ -269,7 +294,48 @@ export async function GET(req: NextRequest) {
             loan.estado.toLowerCase() !== "rechazado"
         )
 
-    return NextResponse.json({ loans: loansToReturn })
+    // Calcular nivel basándose en todos los préstamos pagados
+    const paidLoans = combinedLoans.filter((loan) => loan.estado.toLowerCase() === "pagado")
+    let totalPaidUsd = 0
+    for (const loan of paidLoans) {
+      totalPaidUsd += getLoanAmountInUsd(loan.monto, loan.fechaRegistro, loan.tasaBCV)
+    }
+
+    const level = Math.min(9, Math.floor(totalPaidUsd / 50) + 1)
+    
+    const animalMap: Record<number, string> = {
+      1: "caracol",
+      2: "iguana",
+      3: "guacamaya",
+      4: "cachicamo",
+      5: "chiguire",
+      6: "venado",
+      7: "aguila",
+      8: "caiman",
+      9: "jaguar",
+    }
+    
+    const animalNames: Record<number, string> = {
+      1: "Caracol",
+      2: "Iguana",
+      3: "Guacamaya",
+      4: "Cachicamo",
+      5: "Chigüire",
+      6: "Venado",
+      7: "Águila Arpía",
+      8: "Caimán",
+      9: "Jaguar",
+    }
+
+    const levelInfo = {
+      totalPaidUsd,
+      level,
+      animal: animalMap[level] || "caracol",
+      animalName: animalNames[level] || "Caracol",
+      badgeUrl: `/images/levels/${animalMap[level] || "caracol"}.png`
+    }
+
+    return NextResponse.json({ loans: loansToReturn, levelInfo })
   } catch (error) {
     console.error("Error al obtener préstamos del usuario:", error)
     return NextResponse.json({ loans: [] }, { status: 500 })

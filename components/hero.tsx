@@ -3,6 +3,8 @@
 import Image from "next/image"
 import { ArrowRight } from "lucide-react"
 import { useState, useEffect } from "react"
+import useSWR from "swr"
+import { getLevelGlowClass } from "./levels-ticker"
 
 export function Hero() {
   const [user, setUser] = useState<any | null>(null)
@@ -26,6 +28,9 @@ export function Hero() {
       window.removeEventListener("auth-change", loadUser)
     }
   }, [])
+
+  const { data } = useSWR(user ? "/api/my-loans" : null, (url) => fetch(url).then((res) => res.json()))
+  const levelInfo = data?.levelInfo
 
   return (
     <section id="inicio" className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center overflow-hidden">
@@ -66,6 +71,34 @@ export function Hero() {
               </>
             )}
           </h1>
+
+          {user && levelInfo && (
+            <div className="mt-5 flex items-center gap-3.5 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md px-4 py-3 shadow-xl select-none animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className={`relative w-11 h-11 rounded-full border flex items-center justify-center overflow-hidden shrink-0 ${getLevelGlowClass(levelInfo.level)}`}>
+                <Image
+                  src={levelInfo.badgeUrl}
+                  alt={levelInfo.animalName}
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                />
+              </div>
+              <div className="text-left">
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">Nivel de Socio</p>
+                <h3 className="text-sm font-extrabold text-white font-heading tracking-wide flex items-center gap-1.5 leading-none">
+                  {levelInfo.animalName}
+                  <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                    levelInfo.level >= 8 ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30" : 
+                    levelInfo.level >= 6 ? "bg-lime-500/20 text-lime-400 border border-lime-500/30" : 
+                    levelInfo.level >= 4 ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : 
+                    "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                  }`}>
+                    Nivel {levelInfo.level}
+                  </span>
+                </h3>
+              </div>
+            </div>
+          )}
           <p className="mt-6 max-w-md text-sm sm:text-base leading-relaxed text-slate-200 drop-shadow-md">
             {user
               ? "Tu cuenta está activa y lista para solicitar. Utiliza nuestro simulador abajo para configurar tu préstamo y recibir aprobación al instante."
