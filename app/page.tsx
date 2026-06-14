@@ -2,6 +2,7 @@ import { SiteHeader } from "@/components/site-header"
 import { Hero } from "@/components/hero"
 import { PendingLoansRibbon } from "@/components/pending-loans-ribbon"
 import { HowItWorks } from "@/components/how-it-works"
+import { LevelsTicker } from "@/components/levels-ticker"
 import { LoanSimulator } from "@/components/loan-simulator"
 import { LoanHistory } from "@/components/loan-history"
 import { LoanApplication } from "@/components/loan-application"
@@ -17,6 +18,7 @@ export default function Page() {
       <Hero />
       <PendingLoansRibbon />
       <HowItWorks />
+      <LevelsTicker />
       <LoanSimulator />
       <LoanHistory />
       <LoanApplication />

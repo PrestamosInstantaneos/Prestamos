@@ -55,7 +55,6 @@ export function SiteHeader() {
 
   return (
     <header className="absolute inset-x-0 top-0 z-50">
-      <LevelsTicker />
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 sm:py-6 lg:px-10">
         <a href="#inicio" className="flex items-center gap-2">
           <CunaguaroLogo className="h-9 w-9" />
