@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CheckCircle2, ArrowLeft } from "lucide-react"
+import { CheckCircle2, ArrowLeft, X, ShieldCheck, FileText } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
@@ -76,8 +76,10 @@ export function LoanApplication() {
   const [verificationLoading, setVerificationLoading] = useState(false)
   const [verificationError, setVerificationError] = useState<string | null>(null)
   const [newCedulaPhoto, setNewCedulaPhoto] = useState<string | null>(null)
+  const [newRostroPhoto, setNewRostroPhoto] = useState<string | null>(null)
   const [showReverifyForm, setShowReverifyForm] = useState(false)
   const [showExamplePhoto, setShowExamplePhoto] = useState(false)
+  const [showExampleRostroReverify, setShowExampleRostroReverify] = useState(false)
 
   // Campos del formulario - PASO 1
   const [nombres, setNombres] = useState("")
@@ -99,7 +101,10 @@ export function LoanApplication() {
   const [refPhone, setRefPhone] = useState("")
   const [refRelacion, setRefRelacion] = useState("Familiar")
   const [cedulaPhoto, setCedulaPhoto] = useState<string | null>(null)
+  const [rostroPhoto, setRostroPhoto] = useState<string | null>(null)
+  const [showExampleRostro, setShowExampleRostro] = useState(false)
   const [terms, setTerms] = useState(false)
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false)
 
   useEffect(() => {
     function loadUser() {
@@ -201,6 +206,10 @@ export function LoanApplication() {
       setVerificationError("Por favor selecciona una foto de tu cédula.")
       return
     }
+    if (!newRostroPhoto) {
+      setVerificationError("Por favor selecciona una foto frontal de tu rostro.")
+      return
+    }
 
     setVerificationLoading(true)
     setVerificationError(null)
@@ -213,6 +222,7 @@ export function LoanApplication() {
         },
         body: JSON.stringify({
           cedulaPhoto: newCedulaPhoto,
+          rostroPhoto: newRostroPhoto,
         }),
       })
 
@@ -227,6 +237,7 @@ export function LoanApplication() {
 
       // Limpiar estados
       setNewCedulaPhoto(null)
+      setNewRostroPhoto(null)
       setShowReverifyForm(false)
       setVerificationError(null)
     } catch (err: any) {
@@ -283,6 +294,11 @@ export function LoanApplication() {
       return
     }
 
+    if (!rostroPhoto) {
+      setError("Por favor sube una foto frontal de tu rostro.")
+      return
+    }
+
     if (!terms) {
       setError("Debes aceptar los términos y condiciones para registrar tu cuenta.")
       return
@@ -323,6 +339,7 @@ export function LoanApplication() {
           calle,
           referencias: `${refPhone} (${refRelacion})`,
           cedulaPhoto,
+          rostroPhoto,
         }),
       })
 
@@ -352,6 +369,7 @@ export function LoanApplication() {
       setRefPhone("")
       setRefRelacion("Familiar")
       setCedulaPhoto(null)
+      setRostroPhoto(null)
       setTerms(false)
       setStep(1)
     } catch (err: any) {
@@ -509,11 +527,68 @@ export function LoanApplication() {
                           disabled={verificationLoading}
                         />
                         <span className="text-xs text-muted-foreground text-center">
-                          {newCedulaPhoto ? "✓ Foto cargada correctamente" : "Haz clic para seleccionar nueva foto"}
+                          {newCedulaPhoto ? "✓ Foto de cédula cargada correctamente" : "Haz clic para seleccionar nueva foto de cédula"}
                         </span>
                         {newCedulaPhoto && (
                           <span className="mt-2 text-[10px] text-primary font-medium">Reemplazar archivo</span>
                         )}
+                      </div>
+
+                      {/* Subida de Rostro Re-verificación */}
+                      <div className="space-y-2.5">
+                        <div className="flex justify-between items-center">
+                          <Label htmlFor="newRostroFile" className="text-xs font-semibold text-foreground">Foto Frontal de tu Rostro</Label>
+                          <button
+                            type="button"
+                            onClick={() => setShowExampleRostroReverify(!showExampleRostroReverify)}
+                            className="text-[10px] text-primary hover:underline font-semibold flex items-center gap-1 font-sans"
+                          >
+                            {showExampleRostroReverify ? "Ocultar ejemplo" : "Ver foto de ejemplo ↗"}
+                          </button>
+                        </div>
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          Tómate una foto selfie frontal clara, con buena iluminación, el rostro completamente descubierto, similar al dibujo de ejemplo.
+                        </p>
+
+                        {showExampleRostroReverify && (
+                          <div className="rounded-lg overflow-hidden border border-border bg-secondary/15 p-2 transition-all duration-300">
+                            <img
+                              src="/images/rostro-ejemplo.png"
+                              alt="Ejemplo de Foto Frontal del Rostro"
+                              className="w-full max-w-[200px] mx-auto rounded border border-border shadow-md object-contain"
+                            />
+                          </div>
+                        )}
+                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-5 bg-card/60 transition-colors hover:border-primary/50 relative">
+                          <input
+                            id="newRostroFile"
+                            type="file"
+                            accept="image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                if (file.size > 8 * 1024 * 1024) {
+                                  setVerificationError("La foto del rostro no debe exceder los 8MB.")
+                                  return
+                                }
+                                try {
+                                  const compressed = await compressImage(file)
+                                  setNewRostroPhoto(compressed)
+                                } catch (err) {
+                                  setVerificationError("Error al procesar la foto.")
+                                }
+                              }
+                            }}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                            disabled={verificationLoading}
+                          />
+                          <span className="text-xs text-muted-foreground text-center">
+                            {newRostroPhoto ? "✓ Foto de rostro cargada correctamente" : "Haz clic para seleccionar foto de rostro"}
+                          </span>
+                          {newRostroPhoto && (
+                            <span className="mt-2 text-[10px] text-primary font-medium">Reemplazar archivo</span>
+                          )}
+                        </div>
                       </div>
 
                       {verificationError && (
@@ -527,6 +602,7 @@ export function LoanApplication() {
                             setShowReverifyForm(false)
                             setVerificationError(null)
                             setNewCedulaPhoto(null)
+                            setNewRostroPhoto(null)
                           }}
                           disabled={verificationLoading}
                           className="w-1/3 rounded-md border border-border py-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
@@ -535,7 +611,7 @@ export function LoanApplication() {
                         </button>
                         <button
                           type="submit"
-                          disabled={verificationLoading || !newCedulaPhoto}
+                          disabled={verificationLoading || !newCedulaPhoto || !newRostroPhoto}
                           className="w-2/3 rounded-md bg-primary py-2.5 text-xs font-semibold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                           {verificationLoading ? (
@@ -854,11 +930,69 @@ export function LoanApplication() {
                     )}
                   </div>
                 </div>
+
+                {/* Subida de Rostro */}
+                <div className="space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="rostroFile">Foto Frontal de tu Rostro</Label>
+                    <button
+                      type="button"
+                      onClick={() => setShowExampleRostro(!showExampleRostro)}
+                      className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
+                    >
+                      {showExampleRostro ? "Ocultar ejemplo" : "Ver foto de ejemplo ↗"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Tómate una foto selfie frontal clara, con buena iluminación, el rostro completamente descubierto, sin gorros, lentes ni accesorios. Debe asemejarse al dibujo ilustrativo de ejemplo.
+                  </p>
+
+                  {showExampleRostro && (
+                    <div className="rounded-lg overflow-hidden border border-border bg-secondary/15 p-2 transition-all duration-300">
+                      <img
+                        src="/images/rostro-ejemplo.png"
+                        alt="Ejemplo de Foto Frontal del Rostro"
+                        className="w-full max-w-[280px] mx-auto rounded border border-border shadow-md object-contain"
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-6 bg-card/40 transition-colors hover:border-primary/50 relative">
+                    <input
+                      id="rostroFile"
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          if (file.size > 8 * 1024 * 1024) {
+                            setError("La foto del rostro no debe exceder los 8MB.")
+                            return
+                          }
+                          try {
+                            const compressed = await compressImage(file)
+                            setRostroPhoto(compressed)
+                          } catch (err) {
+                            setError("Error al procesar la foto.")
+                          }
+                        }
+                      }}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      disabled={loading}
+                    />
+                    <span className="text-xs text-muted-foreground text-center">
+                      {rostroPhoto ? "✓ Foto cargada correctamente" : "Haz clic para subir una foto frontal de tu rostro"}
+                    </span>
+                    {rostroPhoto && (
+                      <span className="mt-2 text-[10px] text-primary font-medium">Reemplazar archivo</span>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Checkbox de Términos y Condiciones */}
-              <label className="flex items-start gap-3 text-sm text-muted-foreground select-none cursor-pointer pt-2">
+              <div className="flex items-start gap-3 text-xs text-muted-foreground select-none pt-2">
                 <input
+                  id="regTermsApp"
                   type="checkbox"
                   checked={terms}
                   onChange={(e) => setTerms(e.target.checked)}
@@ -866,10 +1000,17 @@ export function LoanApplication() {
                   className="mt-0.5 h-4 w-4 accent-primary cursor-pointer"
                   required
                 />
-                <span>
-                  Acepto los términos y condiciones y autorizo la verificación de mis datos.
-                </span>
-              </label>
+                <label htmlFor="regTermsApp" className="cursor-pointer leading-normal">
+                  Acepto los{" "}
+                  <button
+                    type="button"
+                    onClick={() => setIsTermsModalOpen(true)}
+                    className="underline text-primary hover:text-primary/80 font-semibold inline-block cursor-pointer"
+                  >
+                    términos y condiciones
+                  </button>
+                </label>
+              </div>
 
               {error && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
@@ -906,6 +1047,104 @@ export function LoanApplication() {
           )}
         </div>
       </div>
+
+      {/* Modal de Términos y Condiciones */}
+      {isTermsModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-foreground flex flex-col max-h-[85vh]">
+            
+            {/* Header del modal */}
+            <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-4 shrink-0">
+              <div className="flex items-center gap-2 text-primary">
+                <ShieldCheck className="h-5 w-5" />
+                <h3 className="text-sm font-bold font-heading uppercase tracking-wider">
+                  Términos y Condiciones Legales
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTermsModalOpen(false)}
+                className="rounded-full p-1 text-muted-foreground hover:bg-white/5 hover:text-white transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Contenido legal con scroll */}
+            <div className="flex-1 overflow-y-auto pr-2 text-xs text-muted-foreground space-y-4 leading-relaxed scrollbar-thin">
+              <p className="font-semibold text-foreground text-center">
+                CONTRATO DE TÉRMINOS Y CONDICIONES DE USO Y SERVICIO
+              </p>
+              <p>
+                Este documento constituye el contrato de Términos y Condiciones que regulan el acceso y uso del sitio web "RESUELVE YA!" y los servicios de simulación y solicitud de créditos comerciales y micro-créditos otorgados bajo el RIF <strong className="text-foreground">J508167368</strong>, en adelante denominado <strong className="text-foreground">"LA EMPRESA"</strong> o <strong className="text-foreground">"EL ADMINISTRADOR"</strong>.
+              </p>
+
+              <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
+                1. OBJETO Y REGISTRO
+              </h4>
+              <p>
+                El usuario declara tener capacidad civil para obligarse y acepta libremente afiliarse para hacer uso de la plataforma de solicitud de micro-préstamos. El registro requiere la veracidad e integridad absoluta de la información ingresada.
+              </p>
+
+              <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
+                2. DERECHO DE SUSPENSIÓN, BLOQUEO Y ELIMINACIÓN DE CUENTAS
+              </h4>
+              <p>
+                <strong className="text-foreground">LA EMPRESA</strong> se reserva el derecho absoluto, unilateral e inapelable de suspender de forma temporal, bloquear de manera indefinida o eliminar definitivamente la cuenta de cualquier usuario, así como anular cualquier solicitud de crédito en curso, si se constatan:
+              </p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Irregularidades en la autenticación o datos de identidad falsos o dudosos (incluyendo la foto de la cédula cargada).</li>
+                <li>Uso indebido o abusivo del servicio (denegación de servicio, bots, escaneos no autorizados, etc.).</li>
+                <li>Incumplimiento contractual de los compromisos de pago adquiridos o mora continuada.</li>
+                <li>Preceptos legales nacionales vigentes que obliguen a suspender la cuenta para evitar fraudes u operaciones ilícitas.</li>
+              </ul>
+
+              <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
+                3. VERIFICACIÓN LEGAL DE DATOS
+              </h4>
+              <p>
+                Al registrarse, el usuario autoriza expresamente a la verificación, corroboración y auditoría de la información provista, incluyendo la realización de llamadas de verificación a referencias personales y comerciales.
+              </p>
+
+              <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
+                4. INFORMACIÓN CORPORATIVA Y DE CONTACTO
+              </h4>
+              <p>
+                Para respaldar la transparencia comercial y legal de las operaciones, la validez del RIF <strong className="text-foreground">J508167368</strong> puede ser consultada y verificada de manera pública y oficial por cualquier interesado a través del portal oficial del <strong className="text-foreground">SENIAT</strong> (Servicio Nacional Integrado de Administración Aduanera y Tributaria) en su sitio web <a href="http://www.seniat.gob.ve" target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">www.seniat.gob.ve</a> utilizando la opción de "Consulta Comprobante Digital RIF".
+              </p>
+
+              <h4 className="font-semibold text-foreground text-xs uppercase tracking-wider pt-2">
+                5. DOMICILIO ESPECIAL Y JURISDICCIÓN
+              </h4>
+              <p>
+                Para todos los efectos derivados de estos términos, se elige como domicilio exclusivo y excluyente a la ciudad de Guatire - Guarenas, Estado Miranda, sometiéndose expresamente a la jurisdicción de sus tribunales competentes.
+              </p>
+            </div>
+
+            {/* Footer del modal */}
+            <div className="flex justify-end gap-2 border-t border-white/5 pt-4 mt-4 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsTermsModalOpen(false)}
+                className="px-4 py-2 border border-white/10 hover:bg-white/5 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer"
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTerms(true)
+                  setIsTermsModalOpen(false)
+                }}
+                className="px-4 py-2 bg-primary hover:opacity-90 text-xs font-bold text-primary-foreground rounded-lg transition-opacity cursor-pointer"
+              >
+                Aceptar y Cerrar
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </section>
   )
 }

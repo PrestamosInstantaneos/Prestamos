@@ -113,6 +113,7 @@ export async function POST(req: Request) {
       calle: userRow[11] || "",
       referencias: userRow[12] || "",
       driveLink: userRow[13] || "",
+      rostroDriveLink: userRow[16] || "",
       verificado: userRow[14] || "NO_VERIFICADA",
       verificacionMotivo: userRow[15] || "",
     }

@@ -89,6 +89,8 @@ export default function LoginPage() {
   const [regTerms, setRegTerms] = useState(false)
   const [showExamplePhoto, setShowExamplePhoto] = useState(false)
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false)
+  const [regRostroPhoto, setRegRostroPhoto] = useState<string | null>(null)
+  const [showExampleRostro, setShowExampleRostro] = useState(false)
 
   // Check if already logged in
   useEffect(() => {
@@ -246,6 +248,11 @@ export default function LoginPage() {
       return
     }
 
+    if (!regRostroPhoto) {
+      setError("Por favor sube una foto frontal de tu rostro.")
+      return
+    }
+
     if (!regTerms) {
       setError("Debes aceptar los términos y condiciones para registrar tu cuenta.")
       return
@@ -282,6 +289,7 @@ export default function LoginPage() {
           calle: regCalle,
           referencias: `${regRefPhone} (${regRefRelacion})`,
           cedulaPhoto: regCedulaPhoto,
+          rostroPhoto: regRostroPhoto,
         }),
       })
 
@@ -675,6 +683,63 @@ export default function LoginPage() {
                   {regCedulaPhoto ? "✓ Foto cargada correctamente" : "Haz clic para subir una foto de tu cédula"}
                 </span>
                 {regCedulaPhoto && (
+                  <span className="mt-2 text-[10px] text-primary font-medium">Reemplazar archivo</span>
+                )}
+              </div>
+            </div>
+
+            {/* Subida de Rostro */}
+            <div className="space-y-2.5">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="rostroFile">Foto Frontal de tu Rostro</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowExampleRostro(!showExampleRostro)}
+                  className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
+                >
+                  {showExampleRostro ? "Ocultar ejemplo" : "Ver foto de ejemplo ↗"}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Tómate una foto selfie frontal clara, con buena iluminación, el rostro completamente descubierto, sin gorros, lentes ni accesorios. Debe asemejarse al dibujo ilustrativo de ejemplo.
+              </p>
+
+              {showExampleRostro && (
+                <div className="rounded-lg overflow-hidden border border-border bg-secondary/15 p-2 transition-all duration-300">
+                  <img
+                    src="/images/rostro-ejemplo.png"
+                    alt="Ejemplo de Foto Frontal del Rostro"
+                    className="w-full max-w-[280px] mx-auto rounded border border-border shadow-md object-contain"
+                  />
+                </div>
+              )}
+              <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-6 bg-card/40 transition-colors hover:border-primary/50 relative">
+                <input
+                  id="rostroFile"
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      if (file.size > 8 * 1024 * 1024) {
+                        setError("La foto del rostro no debe exceder los 8MB.")
+                        return
+                      }
+                      try {
+                        const compressed = await compressImage(file)
+                        setRegRostroPhoto(compressed)
+                      } catch (err) {
+                        setError("Error al procesar la foto.")
+                      }
+                    }
+                  }}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  disabled={loading}
+                />
+                <span className="text-xs text-muted-foreground text-center">
+                  {regRostroPhoto ? "✓ Foto cargada correctamente" : "Haz clic para subir una foto frontal de tu rostro"}
+                </span>
+                {regRostroPhoto && (
                   <span className="mt-2 text-[10px] text-primary font-medium">Reemplazar archivo</span>
                 )}
               </div>

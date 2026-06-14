@@ -26,10 +26,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Extraer cuerpo
-    const { cedulaPhoto } = await req.json()
-    if (!cedulaPhoto) {
+    const { cedulaPhoto, rostroPhoto } = await req.json()
+    if (!cedulaPhoto || !rostroPhoto) {
       return NextResponse.json(
-        { message: "La foto de la cédula es requerida." },
+        { message: "La foto de la cédula y la foto de tu rostro son requeridas." },
         { status: 400 }
       )
     }
@@ -99,6 +99,43 @@ export async function POST(req: NextRequest) {
       driveLink = `https://drive.google.com/open?id=${fileId}`
     } else {
       throw new Error("No se pudo obtener el ID del archivo subido a Google Drive.")
+    }
+
+    // 3.5 Subir la foto del rostro a Google Drive (OAuth2)
+    let rostroDriveLink = ""
+    const rostroMatches = rostroPhoto.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/)
+    if (!rostroMatches || rostroMatches.length !== 3) {
+      return NextResponse.json(
+        { message: "El formato de la foto de tu rostro es inválido." },
+        { status: 400 }
+      )
+    }
+
+    const rostroMimeType = rostroMatches[1]
+    const rostroBase64Data = rostroMatches[2]
+    const rostroBuffer = Buffer.from(rostroBase64Data, "base64")
+
+    const rostroBufferStream = new Readable()
+    rostroBufferStream.push(rostroBuffer)
+    rostroBufferStream.push(null)
+
+    const rostroFileResponse = await drive.files.create({
+      requestBody: {
+        name: `rostro_${normalizedPhone}_${Date.now()}.${rostroMimeType.split("/")[1] || "png"}`,
+        parents: folderId ? [folderId] : undefined,
+      },
+      media: {
+        mimeType: rostroMimeType,
+        body: rostroBufferStream,
+      },
+      supportsAllDrives: true,
+    })
+
+    const rostroFileId = rostroFileResponse.data.id
+    if (rostroFileId) {
+      rostroDriveLink = `https://drive.google.com/open?id=${rostroFileId}`
+    } else {
+      throw new Error("No se pudo obtener el ID del archivo de la foto del rostro subido a Google Drive.")
     }
 
     // 4. Verificación de la cédula con la API de OCR.space (AI OCR)
@@ -330,10 +367,10 @@ export async function POST(req: NextRequest) {
 
     const rowNumber = userIndex + 1 // 1-indexed para Google Sheets
 
-    // 7. Actualizar las columnas de verificación (N: Foto Cédula, O: Verificado, P: Motivo)
+    // 7. Actualizar las columnas de verificación (N: Foto Cédula, O: Verificado, P: Motivo, Q: Foto Rostro)
     await sheets.spreadsheets.values.update({
       spreadsheetId: sheetId,
-      range: `N${rowNumber}:P${rowNumber}`,
+      range: `N${rowNumber}:Q${rowNumber}`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [
@@ -341,6 +378,7 @@ export async function POST(req: NextRequest) {
             driveLink,
             verificado,
             verificacionMotivo,
+            rostroDriveLink,
           ],
         ],
       },
@@ -350,6 +388,7 @@ export async function POST(req: NextRequest) {
     const updatedPayload = {
       ...decodedUser,
       driveLink,
+      rostroDriveLink,
       verificado,
       verificacionMotivo,
     }
