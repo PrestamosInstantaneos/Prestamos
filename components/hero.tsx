@@ -1,7 +1,6 @@
 "use client"
 
 import Image from "next/image"
-import { ArrowRight } from "lucide-react"
 import { useState, useEffect } from "react"
 import useSWR from "swr"
 import { getLevelGlowClass } from "./levels-ticker"
@@ -99,20 +98,13 @@ export function Hero() {
               </div>
             </div>
           )}
-          <p className="mt-6 max-w-md text-sm sm:text-base leading-relaxed text-slate-200 drop-shadow-md">
-            {user
-              ? "Tu cuenta está activa y lista para solicitar. Utiliza nuestro simulador abajo para configurar tu préstamo y recibir aprobación al instante."
-              : "Solicita el dinero que necesitas en minutos. Aprobación rápida, tasas competitivas y desembolso directo a tu cuenta sin papeleo interminable."}
-          </p>
+          {!user && (
+            <p className="mt-6 max-w-md text-sm sm:text-base leading-relaxed text-slate-200 drop-shadow-md">
+              Solicita el dinero que necesitas en minutos. Aprobación rápida, tasas competitivas y desembolso directo a tu cuenta sin papeleo interminable.
+            </p>
+          )}
 
           <div className="mt-9 flex flex-wrap items-center justify-start gap-4">
-            <a
-              href="#solicitar"
-              className="group inline-flex items-center gap-2 rounded-md bg-primary px-8 py-4 text-sm font-semibold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 shadow-lg"
-            >
-              SOLICITAR AHORA
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </a>
             <a
               href="#simulador"
               className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-black/25 backdrop-blur-sm px-8 py-4 text-sm font-semibold tracking-widest text-white transition-colors hover:bg-white/10 shadow-lg"
