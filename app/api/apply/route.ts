@@ -61,11 +61,11 @@ export async function POST(req: Request) {
 
     const sheets = google.sheets({ version: "v4", auth })
 
-    // Agrega la fila a la hoja de cálculo en "Hoja 2" (rango 'Hoja 2'!A:L)
+    // Agrega la fila a la hoja de cálculo en "Solicitudes" (rango 'Solicitudes'!A:L)
     const timestamp = new Date().toLocaleString("es-VE", { timeZone: "America/Caracas" })
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
-      range: "'Hoja 2'!A:L",
+      range: "'Solicitudes'!A:L",
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [

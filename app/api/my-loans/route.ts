@@ -129,24 +129,24 @@ export async function GET(req: NextRequest) {
 
     const sheets = google.sheets({ version: "v4", auth })
 
-    // Leer Hoja 2 y Hoja 3 en paralelo
+    // Leer Solicitudes y Carga manual en paralelo
     const [response, response3] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: "'Hoja 2'!A:L",
+        range: "'Solicitudes'!A:L",
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: "'Hoja 3'!A:J",
+        range: "'Carga manual'!A:J",
       }).catch((err) => {
-        console.error("Error al obtener Hoja 3:", err)
+        console.error("Error al obtener Carga manual:", err)
         return { data: { values: [] } }
       })
     ])
 
     const rows = response.data.values || []
 
-    // Filtrar solicitudes de Hoja 2 correspondientes al teléfono del usuario o a su cédula
+    // Filtrar solicitudes de la pestaña Solicitudes correspondientes al teléfono del usuario o a su cédula
     const userLoans = rows
       .filter((row) => {
         // Coincidencia por teléfono (últimos 10 dígitos)
@@ -173,11 +173,11 @@ export async function GET(req: NextRequest) {
           estado: row[11] || "Pendiente",
           mora: "",
           observacion: "",
-          source: "Hoja 2",
+          source: "Solicitudes",
         }
       })
 
-    // Procesar Hoja 3 (Migración de Excel)
+    // Procesar Carga manual (Migración de Excel)
     const rows3 = response3.data.values || []
     const hoja3Loans = []
 
@@ -246,7 +246,7 @@ export async function GET(req: NextRequest) {
           estado,
           mora,
           observacion,
-          source: "Hoja 3",
+          source: "Carga manual",
         })
       }
     }
