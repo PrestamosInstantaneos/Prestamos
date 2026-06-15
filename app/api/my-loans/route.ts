@@ -154,8 +154,8 @@ export async function GET(req: NextRequest) {
 
     const sheets = google.sheets({ version: "v4", auth })
 
-    // Leer Solicitudes y Carga manual en paralelo
-    const [response, response3] = await Promise.all([
+    // Leer Solicitudes, Carga manual y Registro de usuarios en paralelo
+    const [response, response3, responseUsers] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
         range: "'Solicitudes'!A:L",
@@ -165,6 +165,13 @@ export async function GET(req: NextRequest) {
         range: "'Carga manual'!A:J",
       }).catch((err) => {
         console.error("Error al obtener Carga manual:", err)
+        return { data: { values: [] } }
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: "A:P",
+      }).catch((err) => {
+        console.error("Error al obtener registros de usuarios:", err)
         return { data: { values: [] } }
       })
     ])
@@ -294,6 +301,20 @@ export async function GET(req: NextRequest) {
             loan.estado.toLowerCase() !== "rechazado"
         )
 
+    // Buscar la verificación del usuario en la pestaña de registros
+    const userRows = responseUsers.data.values || []
+    const normalizedPhone = userPhone.replace(/\D/g, "")
+
+    const matchedUserRow = userRows.find((row) => {
+      if (!row[3]) return false
+      const phoneClean = row[3].toString().replace(/\D/g, "").slice(-10)
+      const queryPhoneClean = normalizedPhone.slice(-10)
+      return phoneClean && phoneClean === queryPhoneClean
+    })
+
+    const verificado = matchedUserRow ? (matchedUserRow[14] || "NO_VERIFICADA") : "NO_VERIFICADA"
+    const verificacionMotivo = verificado === "VERIFICADA" ? "" : (matchedUserRow ? (matchedUserRow[15] || "") : "")
+
     // Calcular nivel basándose en todos los préstamos pagados
     const paidLoans = combinedLoans.filter((loan) => loan.estado.toLowerCase() === "pagado")
     let totalPaidUsd = 0
@@ -335,7 +356,15 @@ export async function GET(req: NextRequest) {
       badgeUrl: `/images/levels/${animalMap[level] || "caracol"}.png`
     }
 
-    return NextResponse.json({ loans: loansToReturn, levelInfo })
+    return NextResponse.json({
+      loans: loansToReturn,
+      levelInfo,
+      user: {
+        ...decoded,
+        verificado,
+        verificacionMotivo,
+      }
+    })
   } catch (error) {
     console.error("Error al obtener préstamos del usuario:", error)
     return NextResponse.json({ loans: [] }, { status: 500 })

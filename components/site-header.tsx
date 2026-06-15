@@ -42,6 +42,24 @@ export function SiteHeader() {
   const { data } = useSWR(user ? "/api/my-loans" : null, (url) => fetch(url).then((res) => res.json()))
   const levelInfo = data?.levelInfo
 
+  useEffect(() => {
+    if (data?.user && user) {
+      const updatedVerificado = data.user.verificado
+      const updatedMotivo = data.user.verificacionMotivo
+
+      if (user.verificado !== updatedVerificado || user.verificacionMotivo !== updatedMotivo) {
+        const updatedUser = {
+          ...user,
+          verificado: updatedVerificado,
+          verificacionMotivo: updatedMotivo,
+        }
+        localStorage.setItem("user", JSON.stringify(updatedUser))
+        setUser(updatedUser)
+        window.dispatchEvent(new Event("auth-change"))
+      }
+    }
+  }, [data, user])
+
   async function handleLogout() {
     try {
       await fetch("/api/auth/logout", { method: "POST" })
