@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import useSWR from "swr"
 import Image from "next/image"
 import { X, CheckCircle2, Lock, Star, Sparkles } from "lucide-react"
@@ -174,6 +174,16 @@ export function LevelsTicker() {
   const [selectedLevel, setSelectedLevel] = useState<LevelItem | null>(null)
   const [user, setUser] = useState<any | null>(null)
 
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const cardsRef = useRef<(HTMLDivElement | null)[]>([])
+  
+  const isDraggingRef = useRef(false)
+  const lastXRef = useRef(0)
+  const lastInteractionTimeRef = useRef(0)
+  const isHoveredRef = useRef(false)
+  const loopWidthRef = useRef(0)
+  const totalDragDistanceRef = useRef(0)
+
   // Cargar usuario del localStorage
   useEffect(() => {
     function loadUser() {
@@ -204,12 +214,143 @@ export function LevelsTicker() {
   const userLevel = loansData?.levelInfo?.level || 0
   const userTotalPaid = loansData?.levelInfo?.totalPaidUsd || 0
 
+  // Scroll logic with loop support
+  useEffect(() => {
+    if (!user || !isLevelsUser(user.telefono)) return
+
+    const container = containerRef.current
+    if (!container) return
+
+    let animationFrameId: number
+    const scrollSpeed = 0.6 // slow marquee speed
+
+    const tick = () => {
+      if (!container) return
+
+      // Measure loop width dynamically if not already measured
+      if (loopWidthRef.current === 0) {
+        const card0 = cardsRef.current[0]
+        const card9 = cardsRef.current[9]
+        if (card0 && card9) {
+          const width = card9.offsetLeft - card0.offsetLeft
+          if (width > 0) {
+            loopWidthRef.current = width
+            container.scrollLeft = width // start in the middle copy
+          }
+        }
+      }
+
+      const now = Date.now()
+      const isDragging = isDraggingRef.current
+      const isHovered = isHoveredRef.current
+      const timeSinceLastDrag = now - lastInteractionTimeRef.current
+
+      // Auto scroll if not dragging, not hovering, and 1.5s has passed since last interaction
+      if (!isDragging && !isHovered && timeSinceLastDrag > 1500) {
+        container.scrollLeft += scrollSpeed
+      }
+
+      const loopWidth = loopWidthRef.current
+      if (loopWidth > 0) {
+        if (container.scrollLeft >= loopWidth * 2) {
+          container.scrollLeft -= loopWidth
+        } else if (container.scrollLeft < loopWidth) {
+          container.scrollLeft += loopWidth
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(tick)
+    }
+
+    animationFrameId = requestAnimationFrame(tick)
+
+    const handleResize = () => {
+      const card0 = cardsRef.current[0]
+      const card9 = cardsRef.current[9]
+      if (card0 && card9) {
+        loopWidthRef.current = card9.offsetLeft - card0.offsetLeft
+      }
+    }
+    window.addEventListener("resize", handleResize)
+
+    return () => {
+      cancelAnimationFrame(animationFrameId)
+      window.removeEventListener("resize", handleResize)
+    }
+  }, [user])
+
   if (!user || !isLevelsUser(user.telefono)) {
     return null
   }
 
   // Duplicar el array de niveles estáticos para que el carrusel infinito sea fluido
   const marqueeItems = [...levelsData, ...levelsData, ...levelsData]
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    isDraggingRef.current = true
+    lastXRef.current = e.pageX
+    totalDragDistanceRef.current = 0
+    lastInteractionTimeRef.current = Date.now()
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current) return
+    e.preventDefault()
+    const container = containerRef.current
+    if (container) {
+      const deltaX = e.pageX - lastXRef.current
+      container.scrollLeft -= deltaX
+      totalDragDistanceRef.current += Math.abs(deltaX)
+      lastXRef.current = e.pageX
+      lastInteractionTimeRef.current = Date.now()
+    }
+  }
+
+  const handleMouseUpOrLeave = () => {
+    isDraggingRef.current = false
+    lastInteractionTimeRef.current = Date.now()
+  }
+
+  const handleMouseEnter = () => {
+    isHoveredRef.current = true
+  }
+
+  const handleMouseLeaveContainer = () => {
+    isHoveredRef.current = false
+    isDraggingRef.current = false
+    lastInteractionTimeRef.current = Date.now()
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    isDraggingRef.current = true
+    lastXRef.current = e.touches[0].pageX
+    totalDragDistanceRef.current = 0
+    lastInteractionTimeRef.current = Date.now()
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDraggingRef.current) return
+    const container = containerRef.current
+    if (container) {
+      const deltaX = e.touches[0].pageX - lastXRef.current
+      container.scrollLeft -= deltaX
+      totalDragDistanceRef.current += Math.abs(deltaX)
+      lastXRef.current = e.touches[0].pageX
+      lastInteractionTimeRef.current = Date.now()
+    }
+  }
+
+  const handleTouchEnd = () => {
+    isDraggingRef.current = false
+    lastInteractionTimeRef.current = Date.now()
+  }
+
+  const handleItemClick = (item: LevelItem) => {
+    if (totalDragDistanceRef.current > 5) {
+      return
+    }
+    setSelectedLevel(item)
+  }
 
   return (
     <section className="w-full py-10 border-t border-border/40 bg-zinc-950/40 relative z-35 overflow-hidden">
@@ -236,7 +377,18 @@ export function LevelsTicker() {
 
         {/* Pista deslizable infinita */}
         <div className="w-full flex overflow-hidden">
-          <div className="flex gap-6 items-center py-2 whitespace-nowrap animate-marquee-large">
+          <div
+            ref={containerRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUpOrLeave}
+            onMouseLeave={handleMouseLeaveContainer}
+            onMouseEnter={handleMouseEnter}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            className="w-full flex gap-6 items-center py-2 overflow-x-auto scrollbar-none cursor-grab active:cursor-grabbing select-none"
+          >
             {marqueeItems.map((item, idx) => {
               const borderGlow = getLevelGlowClass(item.level)
               const isActive = user && userLevel >= item.level
@@ -244,7 +396,10 @@ export function LevelsTicker() {
               return (
                 <div
                   key={idx}
-                  onClick={() => setSelectedLevel(item)}
+                  ref={(el) => {
+                    cardsRef.current[idx] = el
+                  }}
+                  onClick={() => handleItemClick(item)}
                   className={`inline-flex flex-col items-center justify-between w-[150px] h-[210px] rounded-2xl border p-4 backdrop-blur-xl transition-all duration-300 hover:scale-105 active:scale-98 cursor-pointer relative shrink-0 ${borderGlow} group`}
                 >
                   {/* Badge de nivel activo */}
@@ -382,23 +537,6 @@ export function LevelsTicker() {
           </div>
         </div>
       )}
-
-      <style jsx global>{`
-        @keyframes marquee-large {
-          0% {
-            transform: translateX(0%);
-          }
-          100% {
-            transform: translateX(-33.3333%);
-          }
-        }
-        .animate-marquee-large {
-          animation: marquee-large 50s linear infinite;
-        }
-        .animate-marquee-large:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
     </section>
   )
 }
