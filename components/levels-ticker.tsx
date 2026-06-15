@@ -27,8 +27,9 @@ const levelsData: LevelItem[] = [
     requirement: "Inicial ($0 USD)",
     requirementAmount: 0,
     benefits: [
-      "Límite de préstamo inicial de hasta Bs. 2.500,00.",
-      "Modalidad de pago único al vencimiento (Pago Contado).",
+      "Límite automático de préstamo hasta Bs. 6.000,00.",
+      "Descuento del 15% cuando su fecha de pago sea igual o menor a 7 días.",
+      "Acceso a cupones de 15% de descuento de intereses.",
       "Acceso básico y soporte estándar en la plataforma."
     ]
   },
@@ -40,9 +41,10 @@ const levelsData: LevelItem[] = [
     requirement: "Haber pagado $50 USD",
     requirementAmount: 50,
     benefits: [
-      "Límite de préstamo incrementado hasta Bs. 4.500,00.",
+      "Límite automático de préstamo hasta Bs. 9.000,00.",
       "5% de descuento en la tasa de interés de tus solicitudes.",
-      "Aprobación de solicitudes prioritaria."
+      "Descuento del 15% cuando su fecha de pago sea igual o menor a 7 días.",
+      "Acceso a cupones de 18% de descuento."
     ]
   },
   {
@@ -53,8 +55,8 @@ const levelsData: LevelItem[] = [
     requirement: "Haber pagado $100 USD",
     requirementAmount: 100,
     benefits: [
-      "Límite de préstamo incrementado hasta Bs. 6.500,00.",
-      "8% de descuento en la tasa de interés de tus solicitudes.",
+      "Límite automático de préstamo hasta Bs. 20.000,00.",
+      "Descuento del 15% cuando su fecha de pago sea igual o menor a 7 días.",
       "Acceso prioritario a cupones y ofertas especiales de fin de semana."
     ]
   },
@@ -66,9 +68,10 @@ const levelsData: LevelItem[] = [
     requirement: "Haber pagado $150 USD",
     requirementAmount: 150,
     benefits: [
-      "Límite de préstamo incrementado hasta Bs. 8.500,00.",
-      "Desbloqueo de modalidad de pago en **Cuotas** (2 cuotas quincenales).",
-      "8% de descuento continuo en tasas de interés."
+      "Límite automático de préstamo hasta Bs. 30.000,00.",
+      "Desbloqueo de modalidad de pago en **3 Cuotas**.",
+      "Descuento del 15% cuando su fecha de pago sea igual o menor a 7 días.",
+      "Acceso prioritario a cupones mayores a descuento de 20% de intereses y ofertas especiales de fin de semana."
     ]
   },
   {
@@ -79,9 +82,9 @@ const levelsData: LevelItem[] = [
     requirement: "Haber pagado $200 USD",
     requirementAmount: 200,
     benefits: [
-      "Límite de préstamo incrementado hasta Bs. 11.000,00.",
-      "10% de descuento en la tasa de interés de tus solicitudes.",
-      "Canal de atención preferencial vía Telegram / WhatsApp VIP."
+      "Límite automático de préstamo hasta Bs. 40.000,00.",
+      "Descuento del 20% cuando su fecha de pago sea igual o menor a 7 días.",
+      "Pagos automáticos, sin interacción o confirmación por WhatsApp."
     ]
   },
   {
