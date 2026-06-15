@@ -72,14 +72,7 @@ export function LoanApplication() {
   // Paso del formulario de registro (1 o 2)
   const [step, setStep] = useState(1)
 
-  // Estados para re-verificación de cédula
-  const [verificationLoading, setVerificationLoading] = useState(false)
-  const [verificationError, setVerificationError] = useState<string | null>(null)
-  const [newCedulaPhoto, setNewCedulaPhoto] = useState<string | null>(null)
-  const [newRostroPhoto, setNewRostroPhoto] = useState<string | null>(null)
-  const [showReverifyForm, setShowReverifyForm] = useState(false)
-  const [showExamplePhoto, setShowExamplePhoto] = useState(false)
-  const [showExampleRostroReverify, setShowExampleRostroReverify] = useState(false)
+
 
   // Campos del formulario - PASO 1
   const [nombres, setNombres] = useState("")
@@ -184,69 +177,7 @@ export function LoanApplication() {
     }
   }
 
-  const handleNewFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 8 * 1024 * 1024) {
-        setVerificationError("La foto de la cédula no debe exceder los 8MB.")
-        return
-      }
-      try {
-        const compressed = await compressImage(file)
-        setNewCedulaPhoto(compressed)
-      } catch (err) {
-        setVerificationError("Error al procesar la foto.")
-      }
-    }
-  }
 
-  const handleReverifySubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newCedulaPhoto) {
-      setVerificationError("Por favor selecciona una foto de tu cédula.")
-      return
-    }
-    if (!newRostroPhoto) {
-      setVerificationError("Por favor selecciona una foto frontal de tu rostro.")
-      return
-    }
-
-    setVerificationLoading(true)
-    setVerificationError(null)
-
-    try {
-      const res = await fetch("/api/auth/verify-cedula", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          cedulaPhoto: newCedulaPhoto,
-          rostroPhoto: newRostroPhoto,
-        }),
-      })
-
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(data.message || "Error al realizar la verificación.")
-      }
-
-      // Guardar el perfil actualizado en localStorage
-      localStorage.setItem("user", JSON.stringify(data.user))
-      window.dispatchEvent(new Event("auth-change"))
-
-      // Limpiar estados
-      setNewCedulaPhoto(null)
-      setNewRostroPhoto(null)
-      setShowReverifyForm(false)
-      setVerificationError(null)
-    } catch (err: any) {
-      console.error(err)
-      setVerificationError(err.message || "La verificación falló. Por favor intenta de nuevo.")
-    } finally {
-      setVerificationLoading(false)
-    }
-  }
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault()
@@ -477,152 +408,7 @@ export function LoanApplication() {
               </div>
 
               {/* Formulario de re-verificación para cuentas no verificadas */}
-              {user.verificado !== "VERIFICADA" && (
-                <div className="mt-8 w-full max-w-md text-left">
-                  {!showReverifyForm ? (
-                    <button
-                      onClick={() => setShowReverifyForm(true)}
-                      className="w-full rounded-md bg-primary py-3 text-xs font-semibold tracking-widest text-primary-foreground transition-opacity hover:opacity-90"
-                    >
-                      VERIFICAR CUENTA AHORA
-                    </button>
-                  ) : (
-                    <form onSubmit={handleReverifySubmit} className="space-y-4 rounded-xl border border-amber-500/20 bg-card/40 p-6">
-                      <h5 className="font-heading font-semibold text-sm text-foreground flex justify-between items-center">
-                        <span>Sube una nueva foto de tu cédula</span>
-                        <button
-                          type="button"
-                          onClick={() => setShowExamplePhoto(!showExamplePhoto)}
-                          className="text-xs text-primary hover:underline font-semibold flex items-center gap-1 font-sans"
-                        >
-                          {showExamplePhoto ? "Ocultar ejemplo" : "Ver foto de ejemplo ↗"}
-                        </button>
-                      </h5>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        Asegúrate de que la foto sea lo más clara y legible posible, tomada en un lugar bien iluminado, sin brillos ni reflejos, similar al ejemplo. El sistema validará que los datos coincidan y cumplan con las reglas de autenticidad.
-                      </p>
 
-                      {showExamplePhoto && (
-                        <div className="rounded-lg overflow-hidden border border-border bg-secondary/15 p-2 transition-all duration-300">
-                          <img
-                            src="/images/cedula-ejemplo.jpg"
-                            alt="Ejemplo de Cédula de Identidad"
-                            className="w-full max-w-[280px] mx-auto rounded border border-border shadow-md object-contain"
-                          />
-                        </div>
-                      )}
-
-                      <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-5 bg-card/60 transition-colors hover:border-primary/50 relative">
-                        <input
-                          id="newCedulaFile"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleNewFileChange}
-                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                          disabled={verificationLoading}
-                        />
-                        <span className="text-xs text-muted-foreground text-center">
-                          {newCedulaPhoto ? "✓ Foto de cédula cargada correctamente" : "Haz clic para seleccionar nueva foto de cédula"}
-                        </span>
-                        {newCedulaPhoto && (
-                          <span className="mt-2 text-[10px] text-primary font-medium">Reemplazar archivo</span>
-                        )}
-                      </div>
-
-                      {/* Subida de Rostro Re-verificación */}
-                      <div className="space-y-2.5">
-                        <div className="flex justify-between items-center">
-                          <Label htmlFor="newRostroFile" className="text-xs font-semibold text-foreground">Foto Frontal de tu Rostro</Label>
-                          <button
-                            type="button"
-                            onClick={() => setShowExampleRostroReverify(!showExampleRostroReverify)}
-                            className="text-[10px] text-primary hover:underline font-semibold flex items-center gap-1 font-sans"
-                          >
-                            {showExampleRostroReverify ? "Ocultar ejemplo" : "Ver foto de ejemplo ↗"}
-                          </button>
-                        </div>
-                        <p className="text-xs leading-relaxed text-muted-foreground">
-                          Tómate una foto selfie frontal clara, con buena iluminación, el rostro completamente descubierto, similar al dibujo de ejemplo.
-                        </p>
-
-                        {showExampleRostroReverify && (
-                          <div className="rounded-lg overflow-hidden border border-border bg-secondary/15 p-2 transition-all duration-300">
-                            <img
-                              src="/images/rostro-ejemplo.png"
-                              alt="Ejemplo de Foto Frontal del Rostro"
-                              className="w-full max-w-[200px] mx-auto rounded border border-border shadow-md object-contain"
-                            />
-                          </div>
-                        )}
-                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-5 bg-card/60 transition-colors hover:border-primary/50 relative">
-                          <input
-                            id="newRostroFile"
-                            type="file"
-                            accept="image/*"
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0]
-                              if (file) {
-                                if (file.size > 8 * 1024 * 1024) {
-                                  setVerificationError("La foto del rostro no debe exceder los 8MB.")
-                                  return
-                                }
-                                try {
-                                  const compressed = await compressImage(file)
-                                  setNewRostroPhoto(compressed)
-                                } catch (err) {
-                                  setVerificationError("Error al procesar la foto.")
-                                }
-                              }
-                            }}
-                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                            disabled={verificationLoading}
-                          />
-                          <span className="text-xs text-muted-foreground text-center">
-                            {newRostroPhoto ? "✓ Foto de rostro cargada correctamente" : "Haz clic para seleccionar foto de rostro"}
-                          </span>
-                          {newRostroPhoto && (
-                            <span className="mt-2 text-[10px] text-primary font-medium">Reemplazar archivo</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {verificationError && (
-                        <p className="text-xs text-red-500 font-medium">{verificationError}</p>
-                      )}
-
-                      <div className="flex gap-3 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowReverifyForm(false)
-                            setVerificationError(null)
-                            setNewCedulaPhoto(null)
-                            setNewRostroPhoto(null)
-                          }}
-                          disabled={verificationLoading}
-                          className="w-1/3 rounded-md border border-border py-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
-                        >
-                          CANCELAR
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={verificationLoading || !newCedulaPhoto || !newRostroPhoto}
-                          className="w-2/3 rounded-md bg-primary py-2.5 text-xs font-semibold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                          {verificationLoading ? (
-                            <>
-                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                              VALIDANDO...
-                            </>
-                          ) : (
-                            "VERIFICAR"
-                          )}
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-              )}
             </div>
           ) : submitted ? (
             // VISTA CUANDO ACABA DE REGISTRARSE EXITOSAMENTE
