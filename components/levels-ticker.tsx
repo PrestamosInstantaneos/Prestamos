@@ -95,9 +95,10 @@ const levelsData: LevelItem[] = [
     requirement: "Haber pagado $250 USD",
     requirementAmount: 250,
     benefits: [
-      "Límite de préstamo incrementado hasta Bs. 15.000,00.",
-      "Pago flexible en cuotas y un 12% de descuento en intereses.",
-      "Retiros procesados en menos de 10 minutos (Soporte prioritario)."
+      "Límite automático de préstamo hasta Bs. 50.000,00.",
+      "Descuento del 40% cuando su fecha de pago sea igual o menor a 7 días.",
+      "Descuento de 15% en modalidad de cuotas.",
+      "Opción de acceder a productos mediano target a cuotas."
     ]
   },
   {
@@ -108,8 +109,10 @@ const levelsData: LevelItem[] = [
     requirement: "Haber pagado $300 USD",
     requirementAmount: 300,
     benefits: [
-      "Límite de préstamo incrementado hasta Bs. 20.000,00.",
-      "15% de descuento en la tasa de interés de tus solicitudes.",
+      "Límite automático de préstamo hasta Bs. 60.000,00.",
+      "Descuento del 40% cuando su fecha de pago sea igual o menor a 7 días.",
+      "Descuento de 20% en modalidad de cuotas.",
+      "Opción de acceder a productos mediano-alto target a cuotas.",
       "Plazos de pago extendidos quincenales o mensuales."
     ]
   },
@@ -121,8 +124,10 @@ const levelsData: LevelItem[] = [
     requirement: "Haber pagado $350 USD",
     requirementAmount: 350,
     benefits: [
-      "Límite de préstamo incrementado hasta Bs. 25.000,00.",
-      "15% de descuento en tasas de interés.",
+      "Límite automático de préstamo hasta Bs. 70.000,00.",
+      "Descuento del 45% cuando su fecha de pago sea igual o menor a 7 días.",
+      "Descuento de 25% en modalidad de cuotas.",
+      "Opción de acceder a productos alto target a cuotas.",
       "Período de gracia exclusivo de 3 días hábiles sin intereses de mora."
     ]
   },
@@ -134,8 +139,10 @@ const levelsData: LevelItem[] = [
     requirement: "Haber pagado $400 USD",
     requirementAmount: 400,
     benefits: [
-      "Límite VIP personalizado de hasta Bs. 40.000,00.",
-      "20% de descuento en la tasa de interés de todos tus créditos.",
+      "Límite automático de préstamo hasta Bs. 100.000,00.",
+      "Descuento del 50% cuando su fecha de pago sea igual o menor a 7 días.",
+      "Descuento de 30% en modalidad de cuotas.",
+      "Acceso ilimitado a cualquier producto premium a cuotas sin inicial.",
       "Modalidades de pago personalizables y cuotas adaptadas a tus ingresos.",
       "Exención de cobro de tasas administrativas de desembolso."
     ]
