@@ -152,7 +152,7 @@ const levelsData: LevelItem[] = [
 export function getLevelGlowClass(level: number): string {
   switch (level) {
     case 1: // Caracol
-      return "border-zinc-500/50 bg-zinc-950/40 shadow-[0_0_8px_rgba(161,161,170,0.15)]"
+      return "border-white/50 bg-white/5 shadow-[0_0_15px_rgba(255,255,255,0.45)]"
     case 2: // Iguana
       return "border-emerald-500/50 bg-emerald-950/10 shadow-[0_0_12px_rgba(16,185,129,0.35)]"
     case 3: // Guacamaya
@@ -216,7 +216,7 @@ export function LevelsTicker() {
   }, [])
 
   // Consultar el endpoint de préstamos para obtener el nivel actual del usuario logueado
-  const { data: loansData } = useSWR(user && isLevelsUser(user.telefono) ? "/api/my-loans" : null, fetcher, {
+  const { data: loansData } = useSWR(user ? "/api/my-loans" : null, fetcher, {
     revalidateOnFocus: false,
     refreshInterval: 30000
   })
@@ -226,8 +226,6 @@ export function LevelsTicker() {
 
   // Scroll logic with loop support
   useEffect(() => {
-    if (!user || !isLevelsUser(user.telefono)) return
-
     const container = containerRef.current
     if (!container) return
 
@@ -287,11 +285,7 @@ export function LevelsTicker() {
       cancelAnimationFrame(animationFrameId)
       window.removeEventListener("resize", handleResize)
     }
-  }, [user])
-
-  if (!user || !isLevelsUser(user.telefono)) {
-    return null
-  }
+  }, [])
 
   // Duplicar el array de niveles estáticos para que el carrusel infinito sea fluido
   const marqueeItems = [...levelsData, ...levelsData, ...levelsData]

@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useState, useEffect } from "react"
 import useSWR from "swr"
-import { getLevelGlowClass, isLevelsUser } from "./levels-ticker"
+import { getLevelGlowClass } from "./levels-ticker"
 import { ScrollReveal } from "./scroll-reveal"
 
 export function Hero() {
@@ -29,7 +29,7 @@ export function Hero() {
     }
   }, [])
 
-  const { data } = useSWR(user && isLevelsUser(user.telefono) ? "/api/my-loans" : null, (url) => fetch(url).then((res) => res.json()))
+  const { data } = useSWR(user ? "/api/my-loans" : null, (url) => fetch(url).then((res) => res.json()))
   const levelInfo = data?.levelInfo
 
   return (
@@ -72,7 +72,7 @@ export function Hero() {
             )}
           </h1>
 
-          {user && isLevelsUser(user.telefono) && levelInfo && (
+          {user && levelInfo && (
             <div className="mt-5 flex items-center gap-3.5 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md px-4 py-3 shadow-xl select-none animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className={`relative w-11 h-11 rounded-full border flex items-center justify-center overflow-hidden shrink-0 ${getLevelGlowClass(levelInfo.level)}`}>
                 <Image
