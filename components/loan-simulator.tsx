@@ -833,8 +833,8 @@ export function LoanSimulator() {
                 >
                   {paymentType === 'others' ? "SOLICITAR MONTO" : "SOLICITAR ESTE PRÉSTAMO"}
                 </button>
-                <p className="text-center text-[10px] font-semibold text-destructive/80">
-                  Debes verificar tu cuenta para solicitar préstamos.
+                <p className="text-center text-[10px] font-semibold text-amber-500/90">
+                  Tu cuenta se encuentra bajo verificación.
                 </p>
               </div>
             ) : user ? (

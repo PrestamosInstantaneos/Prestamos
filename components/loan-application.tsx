@@ -470,15 +470,10 @@ export function LoanApplication() {
                     </span>
                   ) : (
                     <span className="font-semibold text-amber-500">
-                      NO VERIFICADA ⚠
+                      BAJO VERIFICACIÓN 🕒
                     </span>
                   )}
                 </div>
-                {user.verificado !== "VERIFICADA" && user.verificacionMotivo && (
-                  <div className="text-[11px] leading-relaxed text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded p-2.5 mt-2 whitespace-pre-wrap">
-                    <strong>Motivo:</strong>{"\n"}{user.verificacionMotivo}
-                  </div>
-                )}
               </div>
 
               {/* Formulario de re-verificación para cuentas no verificadas */}
