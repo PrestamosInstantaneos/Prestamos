@@ -433,6 +433,44 @@ export async function POST(req: Request) {
       },
     })
 
+    // Enviar notificación a Telegram si está configurado
+    const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN
+    const telegramChatId = process.env.TELEGRAM_CHAT_ID
+
+    if (telegramBotToken && telegramChatId) {
+      try {
+        const estatusIcon = verificado === "VERIFICADA" ? "✅" : "⚠️"
+        const messageText = `👤 *Nuevo Registro de Usuario* 👤\n\n` +
+          `📝 *Nombre:* ${nombres.trim()} ${apellidos.trim()}\n` +
+          `🪪 *Cédula:* ${cedula.trim()}\n` +
+          `📞 *Teléfono:* ${normalizedPhone}\n` +
+          `💼 *Trabaja:* ${trabajando.trim()} (${profesion.trim()})\n` +
+          `📅 *Días de Cobro:* ${diasCobro.trim()}\n` +
+          `📍 *Ubicación:* ${ciudad.trim()}, ${municipio.trim()}\n\n` +
+          `${estatusIcon} *Estatus de Verificación:* ${verificado}\n` +
+          `💬 *Motivo:* \n${verificacionMotivo}\n\n` +
+          `🖼️ *Documentos de Identidad:* \n` +
+          `• [Foto de Cédula](${driveLink})\n` +
+          `• [Foto de Rostro](${rostroDriveLink})\n\n` +
+          `⚙️ _Por favor, revisa los documentos en los enlaces anteriores para realizar la verificación manual si es necesario._`
+
+        await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            chat_id: telegramChatId,
+            text: messageText,
+            parse_mode: "Markdown",
+            disable_web_page_preview: true,
+          }),
+        })
+      } catch (tgError) {
+        console.error("Error al enviar notificación de Telegram en registro:", tgError)
+      }
+    }
+
     // 6. Crear sesión del usuario
     const userPayload = {
       nombres: nombres.trim(),
