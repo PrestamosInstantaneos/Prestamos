@@ -149,7 +149,7 @@ export function LoanApplication() {
 
   const validatePhone = (phone: string): boolean => {
     const cleaned = phone.replace(/-/g, "")
-    return /^(0412|0414|0424|0416|0426)\d{7}$/.test(cleaned)
+    return /^(0412|0422|0414|0424|0416|0426)\d{7}$/.test(cleaned)
   }
 
   const handleRefPhoneChange = (value: string) => {
@@ -194,7 +194,7 @@ export function LoanApplication() {
     }
 
     if (!validatePhone(telefono)) {
-      setError("El número de teléfono debe iniciar con una operadora de Venezuela válida (0412, 0414, 0424, 0416, 0426) seguida de 7 dígitos. Ejemplo: 0412-1234567")
+      setError("El número de teléfono debe iniciar con una operadora de Venezuela válida (0412, 0422, 0414, 0424, 0416, 0426) seguida de 7 dígitos. Ejemplo: 0412-1234567")
       return
     }
 
@@ -216,7 +216,7 @@ export function LoanApplication() {
     }
 
     if (!validatePhone(refPhone)) {
-      setError("El número de teléfono de referencia debe iniciar con una operadora de Venezuela válida (0412, 0414, 0424, 0416, 0426) seguida de 7 dígitos. Ejemplo: 0412-1234567")
+      setError("El número de teléfono de referencia debe iniciar con una operadora de Venezuela válida (0412, 0422, 0414, 0424, 0416, 0426) seguida de 7 dígitos. Ejemplo: 0412-1234567")
       return
     }
 
