@@ -49,7 +49,7 @@ function getLoanAmountInUsd(montoStr: string, dateStr: string, tasaBcvStr?: stri
 function formatName(nombres: string, apellidos: string): string {
   const cleanFirst = (nombres || "").trim().split(" ")[0] || "";
   const cleanLast = (apellidos || "").trim().split(" ")[0] || "";
-  
+
   const capitalize = (str: string) => {
     if (!str) return "";
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
@@ -57,7 +57,7 @@ function formatName(nombres: string, apellidos: string): string {
 
   const first = capitalize(cleanFirst);
   const lastInitial = cleanLast ? `${cleanLast.charAt(0).toUpperCase()}.` : "";
-  
+
   if (first && lastInitial) {
     return `${first} ${lastInitial}`;
   }
@@ -155,7 +155,7 @@ export async function GET() {
       for (let i = 1; i < solicitudesRows.length; i++) {
         const row = solicitudesRows[i]
         if (!row || row.length < 12) continue
-        
+
         const estado = (row[11] || "").toString().trim().toLowerCase()
         if (estado === "pagado") {
           const cedula = row[1] ? row[1].toString().replace(/\D/g, "") : ""
@@ -163,9 +163,9 @@ export async function GET() {
           const monto = row[6] || ""
           const fecha = row[0] || ""
           const tasa = row[10] || ""
-          
+
           const usdAmount = getLoanAmountInUsd(monto, fecha, tasa)
-          
+
           if (cedula) {
             paidByCedula.set(cedula, (paidByCedula.get(cedula) || 0) + usdAmount)
           }
@@ -199,9 +199,9 @@ export async function GET() {
           const cedula = lastSeenCedula.replace(/\D/g, "")
           const monto = row[2] || ""
           const fecha = row[4] || ""
-          
+
           const usdAmount = getLoanAmountInUsd(monto, fecha, "N/A")
-          
+
           if (cedula) {
             paidByCedula.set(cedula, (paidByCedula.get(cedula) || 0) + usdAmount)
           }
@@ -259,7 +259,7 @@ export async function GET() {
     // Si hay muy pocos usuarios, mezclar con datos reales ficticios/estéticos para que la cinta se vea impresionante y fluida.
     const mockPool = getMockUsers()
     const finalUsers = [...userLevels]
-    
+
     // Rellenar hasta tener al menos 10 elementos en la marquesina
     let mockIdx = 0
     while (finalUsers.length < 10 && mockIdx < mockPool.length) {

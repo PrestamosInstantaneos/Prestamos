@@ -25,16 +25,16 @@ function formatMonto(val: string | number | undefined): string {
   if (val === undefined || val === null) return "";
   const str = val.toString().trim();
   if (str === "") return "";
-  
+
   if (str.includes("Bs") || str.includes("$")) {
     return str;
   }
-  
+
   const num = parseFloat(str.replace(/,/g, ""));
   if (!isNaN(num)) {
     return `Bs. ${num.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
-  
+
   return str;
 }
 
@@ -44,7 +44,7 @@ function parseVenezuelaTimestamp(dateStr: string): number {
     const parts = dateStr.split(",");
     const datePart = parts[0].trim();
     const timePart = parts[1] ? parts[1].trim() : "";
-    
+
     const normalizedDatePart = datePart.replace(/-/g, "/");
     const [day, month, year] = normalizedDatePart.split("/").map(Number);
     if (!day || !month || !year) return 0;
@@ -64,7 +64,7 @@ function parseVenezuelaTimestamp(dateStr: string): number {
       const isAM = cleanTime.includes("am");
       const numericPart = cleanTime.replace("am", "").replace("pm", "");
       const [h, m, s] = numericPart.split(":").map(Number);
-      
+
       hours = h || 0;
       minutes = m || 0;
       seconds = s || 0;
@@ -296,10 +296,10 @@ export async function GET(req: NextRequest) {
     const loansToReturn = includeAll
       ? combinedLoans
       : combinedLoans.filter(
-          (loan) =>
-            loan.estado.toLowerCase() !== "pagado" &&
-            loan.estado.toLowerCase() !== "rechazado"
-        )
+        (loan) =>
+          loan.estado.toLowerCase() !== "pagado" &&
+          loan.estado.toLowerCase() !== "rechazado"
+      )
 
     // Buscar la verificación del usuario en la pestaña de registros
     const userRows = responseUsers.data.values || []
@@ -323,7 +323,7 @@ export async function GET(req: NextRequest) {
     }
 
     const level = Math.min(9, Math.floor(totalPaidUsd / 50) + 1)
-    
+
     const animalMap: Record<number, string> = {
       1: "caracol",
       2: "iguana",
@@ -335,7 +335,7 @@ export async function GET(req: NextRequest) {
       8: "caiman",
       9: "jaguar",
     }
-    
+
     const animalNames: Record<number, string> = {
       1: "Caracol",
       2: "Iguana",
