@@ -14,33 +14,34 @@ async function ensureResetTokensSheet(sheets: any, sheetId: string) {
       range: "'ResetTokens'!A1:A1",
     })
   } catch (error: any) {
-    if (error.message && (error.message.includes("not found") || error.message.includes("badRequest") || error.message.includes("does not exist"))) {
-      try {
-        await sheets.spreadsheets.batchUpdate({
-          spreadsheetId: sheetId,
-          requestBody: {
-            requests: [
-              {
-                addSheet: {
-                  properties: {
-                    title: "ResetTokens",
-                  },
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: "ResetTokens",
                 },
               },
-            ],
-          },
-        })
-        await sheets.spreadsheets.values.update({
-          spreadsheetId: sheetId,
-          range: "'ResetTokens'!A1:D1",
-          valueInputOption: "USER_ENTERED",
-          requestBody: {
-            values: [["token", "telefono", "used", "createdAt"]],
-          },
-        })
-      } catch (addError) {
-        console.error("Error creating ResetTokens sheet:", addError)
+            },
+          ],
+        },
+      })
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: "'ResetTokens'!A1:D1",
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [["token", "telefono", "used", "createdAt"]],
+        },
+      })
+    } catch (addError: any) {
+      if (addError.message && addError.message.includes("already exists")) {
+        return
       }
+      console.error("Error creating ResetTokens sheet:", addError)
     }
   }
 }
