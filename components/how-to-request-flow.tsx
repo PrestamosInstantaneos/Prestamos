@@ -195,11 +195,28 @@ export function HowToRequestFlow() {
   const [modality, setModality] = useState<"contado" | "cuotas" | "otro">("contado")
   const [activeStep, setActiveStep] = useState(1)
   const [openTipIdx, setOpenTipIdx] = useState<number | null>(null)
+  const [isOpen, setIsOpen] = useState(false)
 
   // Estados del simulador interactivo
   const [simAmount, setSimAmount] = useState(2000)
   const [simDays, setSimDays] = useState(7)
   const [customAmountText, setCustomAmountText] = useState("15000")
+
+  useEffect(() => {
+    function handleOpenEvent() {
+      setIsOpen(true)
+      setTimeout(() => {
+        const el = document.getElementById("como-solicitar")
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" })
+        }
+      }, 100)
+    }
+    window.addEventListener("open-roadmap", handleOpenEvent)
+    return () => {
+      window.removeEventListener("open-roadmap", handleOpenEvent)
+    }
+  }, [])
 
   useEffect(() => {
     function loadUser() {
@@ -236,6 +253,32 @@ export function HowToRequestFlow() {
   }, [modality])
 
   if (user) return null
+
+  if (!isOpen) {
+    return (
+      <section id="como-solicitar" className="py-16 px-4 sm:px-6 lg:px-10 border-t border-border bg-background text-center relative overflow-hidden select-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] pointer-events-none bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.03),transparent_65%)]" />
+        <div className="mx-auto max-w-xl relative z-10 flex flex-col items-center gap-4">
+          <p className="text-[10px] sm:text-xs font-black tracking-[0.3em] text-primary uppercase">
+            Guía Interactiva
+          </p>
+          <h2 className="font-heading text-xl font-extrabold text-white sm:text-2xl leading-snug">
+            ¿Quieres ver paso a paso cómo solicitar tu préstamo? 🎒
+          </h2>
+          <p className="text-xs text-zinc-400 max-w-sm leading-relaxed">
+            Conoce "El Viaje de Miguel" y simula tu pago en vivo de forma sencilla antes de enviar tu registro.
+          </p>
+          <button
+            onClick={() => setIsOpen(true)}
+            className="rounded-xl bg-primary px-6 py-3.5 text-xs font-bold tracking-widest text-primary-foreground hover:scale-[1.02] active:scale-98 transition-all shadow-lg shadow-primary/20 uppercase cursor-pointer flex items-center gap-2"
+          >
+            <Sparkles className="h-4 w-4" />
+            Ver cómo funciona a detalle
+          </button>
+        </div>
+      </section>
+    )
+  }
 
   // Cálculos de simulación en vivo
   const simulationResults = useMemo(() => {
@@ -728,6 +771,19 @@ export function HowToRequestFlow() {
           </div>
 
         </div>
+
+        <button
+          onClick={() => {
+            setIsOpen(false)
+            setTimeout(() => {
+              const el = document.getElementById("como-solicitar")
+              if (el) el.scrollIntoView({ behavior: "smooth" })
+            }, 50)
+          }}
+          className="text-[10px] font-black text-zinc-500 hover:text-zinc-300 transition-colors uppercase tracking-wider block mx-auto mt-6"
+        >
+          ▲ Ocultar Detalles del Proceso
+        </button>
 
       </div>
     </section>

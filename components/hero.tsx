@@ -108,6 +108,15 @@ export function Hero() {
           )}
 
           <div className="mt-9 flex flex-wrap items-center justify-start gap-4">
+            <button
+              onClick={() => {
+                const event = new CustomEvent("open-roadmap")
+                window.dispatchEvent(event)
+              }}
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-8 py-4 text-sm font-semibold tracking-widest text-primary-foreground transition-all hover:scale-[1.02] active:scale-98 shadow-lg uppercase"
+            >
+              Cómo funciona a detalle
+            </button>
             <a
               href="#simulador"
               className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-black/25 backdrop-blur-sm px-8 py-4 text-sm font-semibold tracking-widest text-white transition-colors hover:bg-white/10 shadow-lg"
