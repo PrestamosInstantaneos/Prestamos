@@ -32,7 +32,7 @@ const faqData: FAQItem[] = [
   {
     id: "dia-cancelo",
     question: "¿Qué día cancelo?",
-    answer: "El día de pago depende de la modalidad elegida al solicitar tu préstamo. En la modalidad de Pago Único (Contado), debes cancelar al vencimiento. En la modalidad de Dos Cuotas, debes pagar en las fechas de cobro quincenales/semanales indicadas en el cronograma de pago de tu solicitud."
+    answer: "El día de pago depende de la modalidad elegida al solicitar tu préstamo. En la modalidad de Pago Único (Contado), debes cancelar al vencimiento. En la modalidad de Dos Cuotas, debes pagar en las fechas de cobro quincenales/semanales indicadas en el cronograma de pago de tu solicitud. Ejemplo: si eliges la modalidad 'Pago al Contado' y pones una fecha de tu comodidad para cancelar en el rango de días indicados, entonces estarías cancelando ese día. O si eliges la modalidad 'Dos Cuotas' y seleccionas los días 15 y 30 como tus días de cobro, estarías cancelando la primera cuota el día 15 y la segunda cuota el día 30 del mes correspondiente."
   },
   {
     id: "pago-instantaneo",
@@ -77,7 +77,7 @@ const faqData: FAQItem[] = [
   {
     id: "monto-limite",
     question: "¿Cuál es el monto límite?",
-    answer: "El monto límite de tu préstamo inicial (Nivel Caracol) comienza en un límite automático de hasta Bs. 6.000. A medida que pagas a tiempo y subes de nivel, tu límite se incrementa paulatinamente hasta un máximo de Bs. 50.000 (Nivel Venado) y superior en los niveles más altos."
+    answer: "El monto límite de tu préstamo inicial (Nivel Caracol) comienza en un límite automático de hasta Bs. 6.000. A medida que pagas a tiempo y subes de nivel, tu límite se incrementa paulatinamente hasta un máximo de Bs. 50.000 (Nivel Venado) y superior en los niveles más altos. Si deseas solicitar un monto por encima del límite de tu nivel, debes elegir la opción 'Otro monto...' en el simulador para hablar directamente con un operador de soporte y evaluar tu caso de manera personalizada."
   }
 ]
 
