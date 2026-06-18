@@ -396,42 +396,6 @@ export function HowToRequestFlow() {
 
       <div className="mx-auto max-w-5xl relative z-10">
         
-        {/* PUBLICIDAD REGISTRO PRIMERO */}
-        <div className="mb-14 rounded-3xl border border-primary bg-gradient-to-r from-primary/15 via-blue-500/10 to-zinc-950/40 p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_30px_rgba(59,130,246,0.15)] relative overflow-hidden group">
-          <div className="absolute -right-20 -bottom-20 w-60 h-60 bg-primary/20 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-500" />
-          <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center text-primary-foreground shrink-0 shadow-lg animate-bounce">
-              <Sparkles className="h-8 w-8" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="bg-red-500/20 text-red-500 border border-red-500/30 text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full animate-pulse">
-                  Requisito Obligatorio ⚠️
-                </span>
-              </div>
-              <h3 className="font-heading text-lg sm:text-2xl font-black text-white tracking-tight mt-1">
-                📢 ¡DEBES REGISTRARTE PRIMERO!
-              </h3>
-              <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed max-w-xl">
-                Para solicitar cualquier pago, **el registro es el paso número 1**. Regístrate completamente gratis y sube tu cédula para simular y cobrar de inmediato.
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-3 shrink-0 w-full md:w-auto relative z-10">
-            <button
-              onClick={() => router.push("/login")}
-              className="flex-1 md:flex-none rounded-xl bg-primary px-6 py-3.5 text-xs font-bold tracking-widest text-primary-foreground hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 uppercase"
-            >
-              REGISTRARSE AHORA
-            </button>
-            <a
-              href="#simulador"
-              className="flex-1 md:flex-none rounded-xl border border-white/10 bg-white/5 px-6 py-3.5 text-xs font-bold tracking-widest text-white hover:bg-white/10 hover:border-white/20 transition-all text-center uppercase"
-            >
-              IR AL SIMULADOR
-            </a>
-          </div>
-        </div>
 
         {/* TITLE */}
         <div className="text-center mb-10">
@@ -859,19 +823,6 @@ export function HowToRequestFlow() {
                     )}
                   </div>
 
-                  {/* Botón CTA del Simulador */}
-                  <div className="pt-2">
-                    <button
-                      onClick={() => router.push("/login")}
-                      className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary to-blue-500 text-primary-foreground font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-98 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      REGISTRARSE PRIMERO PARA SOLICITAR EL PAGO
-                    </button>
-                    <p className="text-[9.5px] text-center text-zinc-400 mt-2 leading-relaxed">
-                      ⚠️ El simulador es solo demostrativo. Para procesar el cobro móvil y recibir fondos, <strong>debes crear tu cuenta primero</strong>.
-                    </p>
-                  </div>
                 </div>
               )}
 
