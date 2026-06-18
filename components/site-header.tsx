@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Menu, X } from "lucide-react"
+import { Menu, X, Copy, Check, ShieldAlert, KeyRound } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CunaguaroLogo } from "./cunaguaro-logo"
 import useSWR from "swr"
-import { getLevelGlowClass, LevelsTicker } from "./levels-ticker"
+import { getLevelGlowClass } from "./levels-ticker"
+import { Input } from "./ui/input"
+import { Label } from "./ui/label"
 
 const navLinks = [
   { label: "INICIO", href: "#inicio" },
@@ -17,6 +19,60 @@ const navLinks = [
 export function SiteHeader() {
   const [open, setOpen] = useState(false)
   const [user, setUser] = useState<{ nombres: string; apellidos: string; telefono: string } | null>(null)
+
+  // Admin help states
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false)
+  const [clientPhone, setClientPhone] = useState("")
+  const [generatedLink, setGeneratedLink] = useState("")
+  const [linkLoading, setLinkLoading] = useState(false)
+  const [linkError, setLinkError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const isAdmin = user && (user.telefono.replace(/\D/g, "").slice(-10) === "4125654081")
+
+  const handleGenerateLink = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLinkError(null)
+    setGeneratedLink("")
+    setCopied(false)
+
+    // Basic validation
+    const digits = clientPhone.replace(/\D/g, "")
+    if (digits.length < 10) {
+      setLinkError("Por favor ingresa un número de teléfono válido de 7 dígitos.")
+      return
+    }
+
+    setLinkLoading(true)
+
+    try {
+      const res = await fetch("/api/auth/generate-reset-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telefono: clientPhone }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.message || "Error al generar el enlace.")
+      }
+
+      setGeneratedLink(data.link)
+      setClientPhone("")
+    } catch (err: any) {
+      setLinkError(err.message || "Ocurrió un error inesperado.")
+    } finally {
+      setLinkLoading(false)
+    }
+  }
+
+  const handleCopyLink = () => {
+    if (generatedLink) {
+      navigator.clipboard.writeText(generatedLink)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
 
   useEffect(() => {
     function loadUser() {
@@ -110,6 +166,14 @@ export function SiteHeader() {
                   Hola, {user.nombres}
                 </span>
               </div>
+              {isAdmin && (
+                <button
+                  onClick={() => setIsAdminModalOpen(true)}
+                  className="rounded-md border border-primary text-primary px-4 py-2 text-xs font-semibold tracking-widest hover:bg-primary/10 transition-colors uppercase animate-pulse"
+                >
+                  AYUDA AL CLIENTE
+                </button>
+              )}
               <button
                 onClick={handleLogout}
                 className="rounded-md border border-border px-4 py-2 text-xs font-semibold tracking-widest text-foreground hover:bg-secondary transition-colors"
@@ -156,6 +220,18 @@ export function SiteHeader() {
             </a>
           ))}
 
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setOpen(false)
+                setIsAdminModalOpen(true)
+              }}
+              className="w-full text-left rounded-md px-3 py-3 text-sm font-semibold tracking-wide text-primary hover:bg-secondary uppercase animate-pulse"
+            >
+              AYUDA AL CLIENTE
+            </button>
+          )}
+
           {user ? (
             <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-border">
               <div className="flex items-center gap-2 px-3">
@@ -198,6 +274,107 @@ export function SiteHeader() {
           )}
         </div>
       </div>
+
+      {/* Admin Help Modal */}
+      {isAdminModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="bg-card border border-border w-full max-w-md p-6 rounded-2xl relative shadow-2xl">
+            <button
+              onClick={() => {
+                setIsAdminModalOpen(false)
+                setGeneratedLink("")
+                setLinkError(null)
+                setClientPhone("")
+              }}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-2.5 text-primary mb-4">
+              <KeyRound className="h-5 w-5" />
+              <h3 className="font-heading text-lg font-bold text-foreground">
+                Ayuda al Cliente (Admin)
+              </h3>
+            </div>
+
+            <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
+              Ingresa el número de teléfono del cliente para generar un enlace único de restablecimiento de contraseña. El enlace se inhabilitará automáticamente una vez sea utilizado.
+            </p>
+
+            <form onSubmit={handleGenerateLink} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="client-phone">Número de Teléfono del Cliente</Label>
+                <Input
+                  id="client-phone"
+                  type="tel"
+                  placeholder="Ej. 0412-1234567"
+                  value={clientPhone}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    const digits = value.replace(/\D/g, "")
+                    if (digits.length <= 4) {
+                      setClientPhone(digits)
+                    } else {
+                      setClientPhone(`${digits.slice(0, 4)}-${digits.slice(4, 11)}`)
+                    }
+                  }}
+                  required
+                  disabled={linkLoading}
+                  maxLength={12}
+                />
+              </div>
+
+              {linkError && (
+                <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3.5 text-xs text-destructive flex gap-2">
+                  <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{linkError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={linkLoading}
+                className="w-full rounded-md bg-primary py-2.5 text-xs font-semibold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {linkLoading ? "GENERANDO..." : "GENERAR ENLACE"}
+              </button>
+            </form>
+
+            {generatedLink && (
+              <div className="mt-6 p-4 rounded-xl border border-primary/20 bg-primary/5">
+                <Label className="text-[10px] tracking-wider text-primary uppercase font-bold block mb-2">
+                  Enlace Generado Exitosamente:
+                </Label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    readOnly
+                    value={generatedLink}
+                    className="flex-1 bg-zinc-950 border border-border px-3 py-2 text-xs rounded-lg text-muted-foreground select-all outline-none"
+                  />
+                  <button
+                    onClick={handleCopyLink}
+                    className="h-9 w-9 flex items-center justify-center shrink-0 border border-border rounded-lg bg-card hover:bg-secondary transition-colors text-foreground"
+                    title="Copiar Enlace"
+                  >
+                    {copied ? (
+                      <Check className="h-4 w-4 text-emerald-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                {copied && (
+                  <p className="text-[10px] text-emerald-500 font-semibold mt-2">
+                    ✓ ¡Enlace copiado al portapapeles! Listo para enviar.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   )
 }

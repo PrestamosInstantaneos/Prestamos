@@ -6,6 +6,7 @@ import { LevelsTicker } from "@/components/levels-ticker"
 import { LoanSimulator } from "@/components/loan-simulator"
 import { LoanHistory } from "@/components/loan-history"
 import { LoanApplication } from "@/components/loan-application"
+import { FAQSection } from "@/components/faq-section"
 import { ContactSection } from "@/components/contact-section"
 import { SiteFooter } from "@/components/site-footer"
 
@@ -22,6 +23,7 @@ export default function Page() {
       <LoanSimulator />
       <LoanHistory />
       <LoanApplication />
+      <FAQSection />
       <ContactSection />
       <SiteFooter />
     </main>
