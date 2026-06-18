@@ -20,19 +20,64 @@ const faqData: FAQItem[] = [
     isResetQuestion: true
   },
   {
-    id: "requirements",
-    question: "¿Cuáles son los requisitos para solicitar un préstamo?",
-    answer: "Los requisitos son sumamente sencillos: ser mayor de edad, residir en Venezuela, tener una cédula de identidad vigente (la cual se verificará mediante una foto) y un número de teléfono celular activo."
+    id: "verificando",
+    question: "¿Por qué aún mi cuenta dice \"verificando\"?",
+    answer: "Tu cuenta está bajo revisión manual por parte de nuestro equipo para validar la autenticidad de tus documentos (cédula y foto de rostro). Este proceso suele demorar unos minutos u horas hábiles. No es necesario realizar ninguna acción adicional; una vez verificada tu cuenta, el estado cambiará automáticamente en tu perfil."
   },
   {
-    id: "approval-time",
-    question: "¿Cuánto tiempo tarda en aprobarse mi solicitud?",
-    answer: "Una vez que envíes tu solicitud de préstamo, nuestro equipo revisará y validará tus datos de forma manual o automática. El proceso suele demorar entre unos minutos y un máximo de 2 horas."
+    id: "inicial",
+    question: "¿Tengo que pagar una inicial?",
+    answer: "No. En RESUELVE YA! nunca solicitamos pagos iniciales, depósitos de garantía ni adelantos de dinero para aprobar o desembolsar tu préstamo. Si alguien te pide un pago previo a nombre de nuestra plataforma, se trata de una estafa."
   },
   {
-    id: "levels-info",
-    question: "¿Cómo subo de nivel y cuáles son los beneficios?",
-    answer: "Cada préstamo que pagas de manera puntual acumula historial crediticio positivo en tu cuenta. Esto te permite subir de nivel (desde el nivel 1 'Caracol' hasta el nivel 9 'Jaguar'). Al subir de nivel, incrementas tu límite de préstamo automático y obtienes descuentos especiales de interés de hasta el 40%."
+    id: "dia-cancelo",
+    question: "¿Qué día cancelo?",
+    answer: "El día de pago depende de la modalidad elegida al solicitar tu préstamo. En la modalidad de Pago Único (Contado), debes cancelar al vencimiento. En la modalidad de Dos Cuotas, debes pagar en las fechas de cobro quincenales/semanales indicadas en el cronograma de pago de tu solicitud."
+  },
+  {
+    id: "pago-instantaneo",
+    question: "¿El pago es instantáneo?",
+    answer: "Sí, los desembolsos de los préstamos aprobados se realizan de forma inmediata a tu cuenta bancaria a través de Pago Móvil, una vez que la solicitud ha sido verificada y aprobada por el administrador."
+  },
+  {
+    id: "comunicacion-solicitud",
+    question: "¿Se comunican conmigo cuando solicito el pago?",
+    answer: "Sí, nuestro equipo o el administrador del sistema se comunicará contigo vía WhatsApp o llamada telefónica en caso de requerir información adicional o para confirmar el desembolso una vez procesado."
+  },
+  {
+    id: "interes-info",
+    question: "¿Cuánto es el interés?",
+    answer: "La tasa de interés se calcula al momento de simular tu solicitud de préstamo. Adicionalmente, de acuerdo a tu Nivel de Cliente (de Caracol a Jaguar), podrás obtener descuentos de intereses de hasta el 40% y beneficios adicionales por pronto pago (pago en 7 días o menos)."
+  },
+  {
+    id: "atraso-info",
+    question: "¿Qué pasa si me atraso?",
+    answer: "El atraso en tus pagos puede generar recargos por mora en bolívares e impactar negativamente en tu historial crediticio interno, lo cual limitará tu acceso a futuros préstamos e impedirá que subas de nivel. Te recomendamos comunicarte con nosotros antes del vencimiento si presentas algún inconveniente."
+  },
+  {
+    id: "monto-incorrecto",
+    question: "Puse un monto incorrecto",
+    answer: "Si te equivocaste al seleccionar el monto en el simulador y ya enviaste la solicitud, por favor contáctanos de inmediato por WhatsApp con tus datos para cancelar la solicitud errónea y que puedas realizar una nueva con el monto correcto."
+  },
+  {
+    id: "fecha-incorrecta",
+    question: "Puse una fecha incorrecta",
+    answer: "De igual manera, si seleccionaste una fecha de cobro o de pago errónea, escríbenos directamente para que podamos corregirla o anular la solicitud a fin de que ingreses los datos correctos."
+  },
+  {
+    id: "pago-movil-datos",
+    question: "¿A qué pago móvil pago?",
+    answer: "Los datos bancarios oficiales para realizar tus pagos y amortizaciones te serán proporcionados por WhatsApp al momento de la aprobación de tu préstamo. Evita realizar transferencias a cuentas que no hayan sido validadas por nuestros canales oficiales."
+  },
+  {
+    id: "todo-bs",
+    question: "¿Todo es en Bs?",
+    answer: "Las solicitudes y los montos se calculan y visualizan tanto en Bolívares (Bs.) como en Dólares (USD) como referencia de valor. Sin embargo, todos los desembolsos y los pagos se realizan en Bolívares (Bs.) al tipo de cambio oficial BCV correspondiente."
+  },
+  {
+    id: "monto-limite",
+    question: "¿Cuál es el monto límite?",
+    answer: "El monto límite de tu préstamo inicial (Nivel Caracol) comienza en un límite automático de hasta Bs. 6.000. A medida que pagas a tiempo y subes de nivel, tu límite se incrementa paulatinamente hasta un máximo de Bs. 50.000 (Nivel Venado) y superior en los niveles más altos."
   }
 ]
 
