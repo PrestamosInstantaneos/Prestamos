@@ -20,12 +20,12 @@ export default function Page() {
       <Hero />
       <PendingLoansRibbon />
       <HowItWorks />
-      <HowToRequestFlow />
       <LevelsTicker />
       <LoanSimulator />
       <LoanHistory />
       <LoanApplication />
       <FAQSection />
+      <HowToRequestFlow />
       <ContactSection />
       <SiteFooter />
     </main>
