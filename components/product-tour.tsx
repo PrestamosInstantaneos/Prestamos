@@ -61,19 +61,27 @@ export function ProductTour() {
   useEffect(() => {
     function checkTourStatus() {
       const storedUser = localStorage.getItem("user")
-      const tourCompleted = localStorage.getItem("tour_completed")
       
       if (storedUser) {
+        let phone = ""
         try {
           const userObj = JSON.parse(storedUser)
-          if (userObj && userObj.nombres) {
-            // Extraer primer nombre
-            const firstName = userObj.nombres.split(" ")[0]
-            setUserName(firstName)
+          if (userObj) {
+            if (userObj.nombres) {
+              // Extraer primer nombre
+              const firstName = userObj.nombres.split(" ")[0]
+              setUserName(firstName)
+            }
+            if (userObj.telefono) {
+              phone = userObj.telefono
+            }
           }
         } catch (e) {
           setUserName("")
         }
+
+        const tourCompletedKey = phone ? `tour_completed_${phone}` : "tour_completed"
+        const tourCompleted = localStorage.getItem(tourCompletedKey)
 
         // Si no ha completado el tour, iniciarlo
         if (!tourCompleted) {
@@ -216,7 +224,18 @@ export function ProductTour() {
   }
 
   const handleFinish = () => {
-    localStorage.setItem("tour_completed", "true")
+    const storedUser = localStorage.getItem("user")
+    let phone = ""
+    if (storedUser) {
+      try {
+        const userObj = JSON.parse(storedUser)
+        if (userObj && userObj.telefono) {
+          phone = userObj.telefono
+        }
+      } catch {}
+    }
+    const tourCompletedKey = phone ? `tour_completed_${phone}` : "tour_completed"
+    localStorage.setItem(tourCompletedKey, "true")
     setIsVisible(false)
   }
 
