@@ -10,6 +10,7 @@ import { LoanApplication } from "@/components/loan-application"
 import { FAQSection } from "@/components/faq-section"
 import { ContactSection } from "@/components/contact-section"
 import { SiteFooter } from "@/components/site-footer"
+import { ProductTour } from "@/components/product-tour"
 
 export default function Page() {
   // Despliegue de producción post-rollback
@@ -28,6 +29,7 @@ export default function Page() {
       <HowToRequestFlow />
       <ContactSection />
       <SiteFooter />
+      <ProductTour />
     </main>
   )
 }

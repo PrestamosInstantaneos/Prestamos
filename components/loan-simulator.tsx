@@ -571,7 +571,7 @@ export function LoanSimulator() {
                 <span className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
                   Modalidad:
                 </span>
-                <div className="flex bg-background/55 border border-border/80 p-1 rounded-lg">
+                <div id="tour-modalidad" className="flex bg-background/55 border border-border/80 p-1 rounded-lg">
                   <button
                     type="button"
                     onClick={() => setPaymentType('total')}
@@ -620,7 +620,7 @@ export function LoanSimulator() {
               ) : (
                 <div className="space-y-6">
                   {/* Monto del préstamo */}
-                  <div>
+                  <div id="tour-monto">
                     <div className="mb-3 flex items-center justify-between">
                       <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                         Monto a solicitar
@@ -646,7 +646,7 @@ export function LoanSimulator() {
 
                   {/* Sección de Fechas Condicional */}
                   {paymentType === 'total' ? (
-                    <div className="space-y-3">
+                    <div id="tour-fecha" className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                           Fecha de pago total
@@ -839,6 +839,7 @@ export function LoanSimulator() {
               </div>
             ) : user ? (
               <button
+                id="tour-solicitar"
                 type="button"
                 onClick={handleRequestLoanClick}
                 className="mt-8 block w-full rounded bg-primary py-4 text-center text-xs font-bold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 uppercase"
