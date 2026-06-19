@@ -73,7 +73,7 @@ export function Hero() {
           </h1>
 
           {user && levelInfo && (
-            <div className="mt-5 flex items-center gap-3.5 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md px-4 py-3 shadow-xl select-none animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div id="tour-nivel" className="mt-5 flex items-center gap-3.5 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md px-4 py-3 shadow-xl select-none animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className={`relative w-11 h-11 rounded-full border flex items-center justify-center overflow-hidden shrink-0 ${getLevelGlowClass(levelInfo.level)}`}>
                 <Image
                   src={levelInfo.badgeUrl}
