@@ -32,17 +32,39 @@ export function Hero() {
   const { data } = useSWR(user ? "/api/my-loans" : null, (url) => fetch(url).then((res) => res.json()))
   const levelInfo = data?.levelInfo
 
+  // Helper para normalizar/limpiar números de teléfono y cédula
+  const cleanPhone = (phone: string) => phone ? phone.replace(/\D/g, "") : ""
+  const cleanCedula = (cedula: string) => cedula ? cedula.replace(/\D/g, "") : ""
+  
+  // Usuario especial: teléfono termina en "4241301804" y cédula es "31758835"
+  const isSpecialUser = !!(
+    user &&
+    cleanPhone(user.telefono).endsWith("4241301804") &&
+    cleanCedula(user.cedula) === "31758835"
+  )
+
   return (
     <section id="inicio" className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center overflow-hidden">
       {/* Tapiz de fondo completo (Full-Bleed Cover) */}
       <div className="absolute inset-0 z-0">
-        <Image
-          src="/images/hero-bg-landscape.png"
-          alt="Paisaje del Monte Tepuy Roraima al atardecer"
-          fill
-          priority
-          className="object-cover object-center brightness-[0.85] contrast-[1.05]"
-        />
+        {isSpecialUser ? (
+          <video
+            src="/hero-special.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover object-center brightness-[0.85] contrast-[1.05]"
+          />
+        ) : (
+          <Image
+            src="/images/hero-bg-landscape.png"
+            alt="Paisaje del Monte Tepuy Roraima al atardecer"
+            fill
+            priority
+            className="object-cover object-center brightness-[0.85] contrast-[1.05]"
+          />
+        )}
         {/* Degradado para fundir el final de la imagen con el fondo azul índigo oscuro */}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-black/20" />
       </div>
