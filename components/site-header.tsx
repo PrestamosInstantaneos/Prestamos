@@ -167,12 +167,20 @@ export function SiteHeader() {
                 </span>
               </div>
               {isAdmin && (
-                <button
-                  onClick={() => setIsAdminModalOpen(true)}
-                  className="rounded-md border border-primary text-primary px-4 py-2 text-xs font-semibold tracking-widest hover:bg-primary/10 transition-colors uppercase animate-pulse"
-                >
-                  AYUDA AL CLIENTE
-                </button>
+                <div className="flex gap-2">
+                  <a
+                    href="/admin"
+                    className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold tracking-widest hover:opacity-90 transition-opacity uppercase text-center flex items-center justify-center font-sans font-bold"
+                  >
+                    PANEL ADMIN
+                  </a>
+                  <button
+                    onClick={() => setIsAdminModalOpen(true)}
+                    className="rounded-md border border-primary text-primary px-4 py-2 text-xs font-semibold tracking-widest hover:bg-primary/10 transition-colors uppercase font-sans"
+                  >
+                    AYUDA AL CLIENTE
+                  </button>
+                </div>
               )}
               <button
                 onClick={handleLogout}
@@ -221,15 +229,24 @@ export function SiteHeader() {
           ))}
 
           {isAdmin && (
-            <button
-              onClick={() => {
-                setOpen(false)
-                setIsAdminModalOpen(true)
-              }}
-              className="w-full text-left rounded-md px-3 py-3 text-sm font-semibold tracking-wide text-primary hover:bg-secondary uppercase animate-pulse"
-            >
-              AYUDA AL CLIENTE
-            </button>
+            <>
+              <a
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className="w-full text-left rounded-md px-3 py-3 text-sm font-semibold tracking-wide text-primary hover:bg-secondary uppercase font-sans font-bold"
+              >
+                PANEL ADMIN
+              </a>
+              <button
+                onClick={() => {
+                  setOpen(false)
+                  setIsAdminModalOpen(true)
+                }}
+                className="w-full text-left rounded-md px-3 py-3 text-sm font-semibold tracking-wide text-primary hover:bg-secondary uppercase font-sans"
+              >
+                AYUDA AL CLIENTE
+              </button>
+            </>
           )}
 
           {user ? (
