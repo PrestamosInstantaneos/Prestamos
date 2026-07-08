@@ -85,6 +85,8 @@ export default function AdminDashboard() {
   const { data: bcvData } = useSWR("/api/bcv-rate", fetcher, { revalidateOnFocus: false })
   const bcvRate = bcvData?.usd || 40.0 // Default fallback
 
+
+
   // Admin Data SWR
   const { data, error, mutate, isValidating } = useSWR(
     authorized ? "/api/admin/data" : null,
@@ -122,7 +124,7 @@ export default function AdminDashboard() {
   const [manualClientSelected, setManualClientSelected] = useState("") // selected client's telefono
   const [manualMonto, setManualMonto] = useState("")
   const [manualModalidad, setManualModalidad] = useState("Pago Total")
-  const [manualInteres, setManualInteres] = useState("25") // Default 25% interest
+  const [manualInteres, setManualInteres] = useState("54") // Default 54% interest
   const [manualFechas, setManualFechas] = useState("")
   const [manualCustomTotal, setManualCustomTotal] = useState("")
   const [manualEstado, setManualEstado] = useState("Aprobado")
@@ -146,6 +148,28 @@ export default function AdminDashboard() {
   const [waSubmitting, setWaSubmitting] = useState(false)
   const [waError, setWaError] = useState<string | null>(null)
   const [waSuccess, setWaSuccess] = useState<string | null>(null)
+
+  // Sub-states: Dollar History & Projections
+  const [bcvHistory, setBcvHistory] = useState<any[]>([])
+  const [bcvAnalysis, setBcvAnalysis] = useState<any>(null)
+  const [loadingBcvHistory, setLoadingBcvHistory] = useState(true)
+
+  // Sub-states: Dynamic Interest settings
+  const [interestConfig, setInterestConfig] = useState<any>({
+    Tasa_Interes_Base: 54,
+    Interes_Nivel_1: 54,
+    Interes_Nivel_2: 52,
+    Interes_Nivel_3: 50,
+    Interes_Nivel_4: 48,
+    Interes_Nivel_5: 46,
+    Interes_Nivel_6: 44,
+    Interes_Nivel_7: 42,
+    Interes_Nivel_8: 40,
+    Interes_Nivel_9: 38,
+  })
+  const [savingConfig, setSavingConfig] = useState(false)
+  const [configSuccess, setConfigSuccess] = useState<string | null>(null)
+  const [configError, setConfigError] = useState<string | null>(null)
 
   // Sub-states: Capital Base & Working Capital (USD)
   const [capitalBase, setCapitalBase] = useState<number>(() => {
@@ -181,6 +205,92 @@ export default function AdminDashboard() {
   // Helper lists from SWR data
   const users = data?.users || []
   const loans = data?.loans || []
+
+  // Helper to calculate user level and total paid volume dynamically in frontend
+  const getUserLevelInfo = useMemo(() => {
+    return (userObj: any) => {
+      if (!userObj || !loans || loans.length === 0) return { level: 1, totalPaidUsd: 0 }
+      const userCedulaClean = userObj.cedula.trim().toLowerCase()
+      const userLoans = loans.filter((l: any) => l.cedula.trim().toLowerCase() === userCedulaClean)
+      const paidLoans = userLoans.filter((l: any) => l.estado.trim().toLowerCase() === "pagado")
+      
+      let totalPaidUsd = 0
+      paidLoans.forEach((loan: any) => {
+        const baseClean = parseFloat(loan.monto.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0
+        const rateClean = parseFloat(loan.bcvRate.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || bcvRate || 40.0
+        totalPaidUsd += rateClean > 0 ? baseClean / rateClean : 0
+      })
+      
+      const level = Math.min(9, Math.floor(totalPaidUsd / 50) + 1)
+      return { level, totalPaidUsd }
+    }
+  }, [loans, bcvRate])
+
+  // Fetch dollar history and dynamic config when authorized is true
+  useEffect(() => {
+    if (authorized) {
+      const loadHistoryAndConfig = async () => {
+        try {
+          setLoadingBcvHistory(true)
+          const resHistory = await fetch("/api/admin/bcv-history")
+          const dataHistory = await resHistory.json()
+          if (dataHistory.success) {
+            setBcvHistory(dataHistory.history)
+            setBcvAnalysis(dataHistory.analysis)
+          }
+
+          const resConfig = await fetch("/api/config")
+          const dataConfig = await resConfig.json()
+          if (dataConfig.success && dataConfig.config) {
+            setInterestConfig(dataConfig.config)
+          }
+        } catch (err) {
+          console.error("Error al inicializar datos:", err)
+        } finally {
+          setLoadingBcvHistory(false)
+        }
+      }
+      loadHistoryAndConfig()
+    }
+  }, [authorized])
+
+  // Prefill dynamic interest based on level when manual client changes
+  useEffect(() => {
+    if (manualClientSelected && users.length > 0) {
+      const client = users.find((u: any) => u.telefono === manualClientSelected)
+      if (client) {
+        const { level } = getUserLevelInfo(client)
+        const rateForLevel = interestConfig[`Interes_Nivel_${level}`] || interestConfig.Tasa_Interes_Base || 54
+        setManualInteres(rateForLevel.toString())
+      }
+    }
+  }, [manualClientSelected, users, interestConfig, getUserLevelInfo])
+
+  // Guardar configuración de intereses
+  const handleSaveInterestConfig = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingConfig(true)
+    setConfigSuccess(null)
+    setConfigError(null)
+    try {
+      const res = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: interestConfig }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setConfigSuccess("Configuración de intereses guardada y aplicada en toda la plataforma.")
+        setTimeout(() => setConfigSuccess(null), 5000)
+      } else {
+        setConfigError(data.message || "Error al guardar la configuración.")
+      }
+    } catch (err: any) {
+      setConfigError(err.message || "Error de red.")
+    } finally {
+      setSavingConfig(false)
+    }
+  }
 
   // Pre-fill fields for manual loan form based on client selection
   const selectedManualClientObj = useMemo(() => {
@@ -1085,6 +1195,285 @@ export default function AdminDashboard() {
                 <PlusCircle className="h-4.5 w-4.5" /> Registrar Préstamo Manual
               </button>
             </div>
+
+            {/* SECTION: Seguimiento de Tasa de Cambio y Proyecciones */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Proyecciones y Estadísticas de Tasa */}
+              <div className="bg-card border border-border p-6 rounded-2xl shadow-xl space-y-4 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-primary border-b border-border/60 pb-3 mb-4">
+                    <TrendingUp className="h-5 w-5" />
+                    <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-foreground">
+                      Análisis y Proyección de Tasa
+                    </h3>
+                  </div>
+
+                  {loadingBcvHistory ? (
+                    <div className="flex flex-col items-center justify-center h-44 space-y-2">
+                      <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                      <span className="text-xs text-muted-foreground">Analizando historial del dólar...</span>
+                    </div>
+                  ) : bcvAnalysis ? (
+                    <div className="space-y-4 text-xs">
+                      <div className="bg-zinc-950/40 p-3 rounded-lg border border-border/80 flex items-center justify-between">
+                        <div>
+                          <p className="text-muted-foreground font-semibold uppercase text-[9px] tracking-wider">Tasa BCV Actual</p>
+                          <p className="text-xl font-bold font-mono text-foreground mt-0.5">
+                            Bs. {bcvAnalysis.currentRate.toFixed(4)}
+                          </p>
+                        </div>
+                        <span className="bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold px-2 py-0.5 rounded font-mono">
+                          USD / VES
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-zinc-950/40 p-3 rounded-lg border border-border/80">
+                          <p className="text-muted-foreground font-semibold uppercase text-[9px] tracking-wider">Crecimiento Diario</p>
+                          <p className="text-sm font-bold font-mono text-red-400 mt-1">
+                            +{bcvAnalysis.avgDailyIncreaseBs.toFixed(4)} Bs.
+                          </p>
+                          <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                            ({bcvAnalysis.avgDailyIncreasePct.toFixed(2)}%)
+                          </p>
+                        </div>
+
+                        <div className="bg-zinc-950/40 p-3 rounded-lg border border-border/80">
+                          <p className="text-muted-foreground font-semibold uppercase text-[9px] tracking-wider">Tasa Proyectada (15d)</p>
+                          <p className="text-sm font-bold font-mono text-primary mt-1">
+                            Bs. {bcvAnalysis.projectedRate15Days.toFixed(4)}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                            (+{bcvAnalysis.projectedChangePct15Days.toFixed(2)}%)
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="bg-primary/5 border border-primary/15 p-3 rounded-lg text-[10px] leading-relaxed text-muted-foreground">
+                        💡 **Nota del Analizador:** Basado en la progresión diaria calculada, se estima que el dólar incremente aproximadamente **{bcvAnalysis.avgDailyIncreasePct.toFixed(2)}%** cada día en bolívares, acumulando un alza estimada del **{bcvAnalysis.projectedChangePct15Days.toFixed(2)}%** quincenal.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center text-xs text-muted-foreground py-10">
+                      No hay datos de análisis disponibles.
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider pt-3 border-t border-border/60">
+                  Estadísticas predictivas en base a BCV
+                </div>
+              </div>
+
+              {/* Tabla Histórica de Tasas */}
+              <div className="bg-card border border-border p-6 rounded-2xl shadow-xl lg:col-span-2 space-y-4">
+                <div className="flex items-center justify-between border-b border-border/60 pb-3 mb-2">
+                  <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                    Historial de Cotizaciones Recientes (BCV)
+                  </h3>
+                  <span className="text-[10px] text-muted-foreground">Últimas actualizaciones</span>
+                </div>
+
+                {loadingBcvHistory ? (
+                  <div className="flex items-center justify-center h-48">
+                    <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : bcvHistory.length === 0 ? (
+                  <div className="text-center text-muted-foreground text-xs py-12">
+                    Sin registros de tasa de cambio todavía.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-zinc-950/80 border-b border-border text-muted-foreground font-semibold uppercase tracking-wider">
+                          <th className="px-4 py-2.5">Fecha</th>
+                          <th className="px-4 py-2.5 text-right">Tasa de Cambio</th>
+                          <th className="px-4 py-2.5 text-right">Cambio (Bs.)</th>
+                          <th className="px-4 py-2.5 text-right">Cambio (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/50 font-mono text-[11px]">
+                        {bcvHistory.slice(0, 7).map((row, idx) => {
+                          const isPositive = parseFloat(row.variacionBs) > 0
+                          const isZero = parseFloat(row.variacionBs) === 0
+                          return (
+                            <tr key={idx} className="hover:bg-zinc-950/20 transition-colors">
+                              <td className="px-4 py-2.5 text-muted-foreground font-semibold">{row.fecha}</td>
+                              <td className="px-4 py-2.5 text-right font-bold text-foreground">Bs. {parseFloat(row.tasa).toFixed(4)}</td>
+                              <td className={`px-4 py-2.5 text-right font-semibold ${isZero ? "text-muted-foreground" : isPositive ? "text-red-400" : "text-emerald-400"}`}>
+                                {isZero ? "-" : `${isPositive ? "+" : ""}${row.variacionBs}`}
+                              </td>
+                              <td className={`px-4 py-2.5 text-right font-semibold ${isZero ? "text-muted-foreground" : isPositive ? "text-red-400" : "text-emerald-400"}`}>
+                                {isZero ? "0.00%" : `${isPositive ? "+" : ""}${row.variacionPct}`}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* SECTION: Configuración de Tasas de Interés y Recomendaciones AI */}
+            <div className="bg-card border border-border p-6 rounded-2xl shadow-xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border/60 pb-4 gap-2">
+                <div className="flex items-center gap-2 text-primary">
+                  <DollarSign className="h-5.5 w-5.5" />
+                  <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-foreground">
+                    Configuración de Tasas de Interés (Niveles de Fidelidad)
+                  </h3>
+                </div>
+                <span className="text-[10px] text-muted-foreground bg-secondary px-2.5 py-1 border border-border rounded font-bold">
+                  Cambios automáticos en paneles de usuario
+                </span>
+              </div>
+
+              {/* Caja de Recomendaciones AI */}
+              {bcvAnalysis && (
+                <div className="bg-zinc-950/60 border border-border p-4.5 rounded-xl space-y-3.5 text-xs">
+                  <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
+                    <TrendingUp className="h-4.5 w-4.5 text-amber-400" />
+                    <span>Recomendación del Algoritmo de Inflación (BCV)</span>
+                  </div>
+
+                  <p className="text-muted-foreground leading-relaxed text-[11px]">
+                    Basado en la tasa BCV promedio de variación diaria de **+{bcvAnalysis.avgDailyIncreasePct.toFixed(2)}%** y una proyección quincenal de **+{bcvAnalysis.projectedChangePct15Days.toFixed(2)}%**, el algoritmo recomienda ajustar la tasa de interés base para mantener la rentabilidad contra la devaluación:
+                  </p>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 bg-secondary/30 p-3 rounded-lg border border-border/50">
+                    <div className="flex items-center gap-6">
+                      <div>
+                        <p className="text-muted-foreground text-[9px] uppercase font-semibold">Tasa Base Sugerida</p>
+                        <p className="text-base font-extrabold text-amber-400 font-mono mt-0.5">
+                          {bcvAnalysis.avgDailyIncreasePct < 0.1 ? "48%" : bcvAnalysis.avgDailyIncreasePct < 0.3 ? "54%" : bcvAnalysis.avgDailyIncreasePct < 0.5 ? "60%" : "65%"} de interés
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-[9px] uppercase font-semibold">Diferencial por Nivel</p>
+                        <p className="text-base font-extrabold text-foreground font-mono mt-0.5">
+                          -{bcvAnalysis.avgDailyIncreasePct < 0.1 ? "1.5%" : bcvAnalysis.avgDailyIncreasePct < 0.3 ? "2.0%" : bcvAnalysis.avgDailyIncreasePct < 0.5 ? "2.0%" : "2.5%"} cada nivel
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const dailyPct = bcvAnalysis.avgDailyIncreasePct
+                        let base = 54
+                        let step = 2
+                        if (dailyPct < 0.1) {
+                          base = 48
+                          step = 1.5
+                        } else if (dailyPct < 0.3) {
+                          base = 54
+                          step = 2
+                        } else if (dailyPct < 0.5) {
+                          base = 60
+                          step = 2
+                        } else {
+                          base = 65
+                          step = 2.5
+                        }
+
+                        setInterestConfig({
+                          Tasa_Interes_Base: base,
+                          Interes_Nivel_1: base,
+                          Interes_Nivel_2: base - step,
+                          Interes_Nivel_3: base - step * 2,
+                          Interes_Nivel_4: base - step * 3,
+                          Interes_Nivel_5: base - step * 4,
+                          Interes_Nivel_6: base - step * 5,
+                          Interes_Nivel_7: base - step * 6,
+                          Interes_Nivel_8: base - step * 7,
+                          Interes_Nivel_9: base - step * 8,
+                        })
+                        setConfigSuccess("Sugerencia AI aplicada a los campos de texto inferiores. Haz clic en 'Guardar Cambios' para guardarlos en Sheets.")
+                        setTimeout(() => setConfigSuccess(null), 5000)
+                      }}
+                      className="rounded-md bg-primary/95 text-primary-foreground hover:bg-primary font-bold px-4 py-2 text-[10px] uppercase transition-all tracking-wider flex items-center gap-1 shrink-0"
+                    >
+                      Aplicar Sugerencia AI
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveInterestConfig} className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                  {/* Tasa Base */}
+                  <div className="bg-zinc-950/40 p-3.5 border border-border rounded-xl space-y-1.5 col-span-2 sm:col-span-1">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Tasa Base (%):</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="1"
+                      max="100"
+                      value={interestConfig.Tasa_Interes_Base}
+                      onChange={(e) => setInterestConfig({ ...interestConfig, Tasa_Interes_Base: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-1.5 text-xs font-mono font-bold focus:border-primary focus:outline-none"
+                      required
+                    />
+                  </div>
+
+                  {/* Niveles 1 al 9 */}
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((lvl) => {
+                    const fieldName = `Interes_Nivel_${lvl}`
+                    const animalNames: Record<number, string> = {
+                      1: "Caracol",
+                      2: "Iguana",
+                      3: "Guacamaya",
+                      4: "Delfín",
+                      5: "Chigüire",
+                      6: "Venado",
+                      7: "Águila",
+                      8: "Caimán",
+                      9: "Jaguar",
+                    }
+                    return (
+                      <div key={lvl} className="bg-zinc-950/40 p-3 border border-border/80 rounded-xl space-y-1">
+                        <span className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider">Nivel {lvl}: {animalNames[lvl]}</span>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={interestConfig[fieldName] ?? 0}
+                            onChange={(e) => setInterestConfig({ ...interestConfig, [fieldName]: parseFloat(e.target.value) || 0 })}
+                            className="w-full bg-zinc-950 border border-border/60 rounded px-2.5 py-1 text-xs font-mono font-bold focus:border-primary focus:outline-none"
+                            required
+                          />
+                          <span className="text-muted-foreground text-xs">%</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {configError && <p className="text-xs text-destructive font-semibold">✗ {configError}</p>}
+                {configSuccess && <p className="text-xs text-emerald-400 font-semibold">✓ {configSuccess}</p>}
+
+                <div className="flex justify-end pt-2 border-t border-border/60">
+                  <button
+                    type="submit"
+                    disabled={savingConfig}
+                    className="w-full sm:w-auto rounded-md bg-primary hover:opacity-95 disabled:opacity-50 text-primary-foreground font-bold px-6 py-2.5 text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                  >
+                    {savingConfig ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Guardando Cambios...
+                      </>
+                    ) : (
+                      <>Guardar Cambios de Intereses</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 
@@ -1394,15 +1783,40 @@ export default function AdminDashboard() {
                 </p>
               </div>
 
-              {selectedUser.verificado === "VERIFICADA" ? (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 w-fit uppercase">
-                  <ShieldCheck className="h-4 w-4" /> Cliente Verificado
-                </div>
-              ) : (
-                <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 w-fit uppercase">
-                  <ShieldAlert className="h-4 w-4 animate-bounce" /> Pendiente de Verificación
-                </div>
-              )}
+              {(() => {
+                const levelInfo = getUserLevelInfo(selectedUser);
+                const animalNames: Record<number, string> = {
+                  1: "Caracol 🐌",
+                  2: "Iguana 🦎",
+                  3: "Guacamaya 🦜",
+                  4: "Delfín 🐬",
+                  5: "Chigüire 🦫",
+                  6: "Venado 🦌",
+                  7: "Águila 🦅",
+                  8: "Caimán 🐊",
+                  9: "Jaguar 🐆",
+                };
+                return (
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    {selectedUser.verificado === "VERIFICADA" ? (
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 w-fit uppercase">
+                        <ShieldCheck className="h-4 w-4" /> Cliente Verificado
+                      </div>
+                    ) : selectedUser.verificado === "WHATSAPP" ? (
+                      <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 w-fit uppercase">
+                        <ShieldCheck className="h-4 w-4" /> Cliente WhatsApp
+                      </div>
+                    ) : (
+                      <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 w-fit uppercase">
+                        <ShieldAlert className="h-4 w-4 animate-bounce" /> Pendiente
+                      </div>
+                    )}
+                    <div className="bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 w-fit uppercase">
+                      <span>Nivel {levelInfo.level}: {animalNames[levelInfo.level]} (${levelInfo.totalPaidUsd.toFixed(2)} USD)</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Details Grid */}
@@ -1765,21 +2179,19 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-muted-foreground font-semibold">Tasa de Interés (%):</label>
-                  <select
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="Ej. 54"
                     value={manualInteres}
                     onChange={(e) => {
                       setManualInteres(e.target.value)
                       setManualCustomTotal("")
                     }}
-                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
-                  >
-                    <option value="20">20% de recargo</option>
-                    <option value="25">25% de recargo (Estándar)</option>
-                    <option value="30">30% de recargo</option>
-                    <option value="35">35% de recargo</option>
-                    <option value="40">40% de recargo</option>
-                    <option value="0">0% de recargo (Sin Interés)</option>
-                  </select>
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                    required
+                  />
                 </div>
 
                 <div className="space-y-1.5">

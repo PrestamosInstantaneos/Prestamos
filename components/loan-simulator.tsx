@@ -77,7 +77,8 @@ function calculateLoan(
   firstPaymentDate: Date | null,
   lastPaymentDate: Date | null, // Usado para cuotas, para total es el mismo que firstPaymentDate
   bcvUsd: number,
-  today: Date // Recibir 'today' como argumento
+  today: Date, // Recibir 'today' como argumento
+  interestRatePct: number
 ) {
   const defaultReturn = {
     loanAmountUsd: 0,
@@ -110,8 +111,8 @@ function calculateLoan(
     return defaultReturn;
   }
 
-  const totalInterestUsd = (amount / 1000) * 0.8;
   const loanAmountUsd = amount / bcvUsd;
+  const totalInterestUsd = loanAmountUsd * (interestRatePct / 100);
   const defaultTotalAmountToPayUsd = loanAmountUsd + totalInterestUsd;
   const defaultTotalAmountToPayBs = defaultTotalAmountToPayUsd * bcvUsd;
 
@@ -332,6 +333,15 @@ export function LoanSimulator() {
     refreshInterval: 1000 * 60 * 60, // reintenta cada hora en el cliente
   })
 
+  // Obtener configuracion de intereses y nivel del usuario
+  const { data: configData } = useSWR("/api/config", fetcher)
+  const configs = configData?.config || {}
+
+  const { data: myLoansData } = useSWR(user ? "/api/my-loans" : null, fetcher)
+  const userLevel = myLoansData?.levelInfo?.level || 1
+
+  const activeRate = configs[`Interes_Nivel_${userLevel}`] || configs.Tasa_Interes_Base || 54
+
   // --- Logs para depuración en el navegador ---
   console.log("SWR Data (rate):", rate)
   console.log("SWR Error:", error)
@@ -340,6 +350,7 @@ export function LoanSimulator() {
   console.log("Single Payment Date:", singlePaymentDate, "Valid:", isValid(singlePaymentDate || new Date('invalid')));
   console.log("First Installment Date:", firstInstallmentDate, "Valid:", isValid(firstInstallmentDate || new Date('invalid')));
   console.log("Last Installment Date:", lastInstallmentDate, "Valid:", isValid(lastInstallmentDate || new Date('invalid')));
+  console.log("Active interest rate (level " + userLevel + "):", activeRate);
   // --- Fin de logs ---
 
   // Usar un valor de respaldo si la tasa del BCV no está disponible o es 0
@@ -372,9 +383,10 @@ export function LoanSimulator() {
       paymentType === 'total' ? singlePaymentDate : firstInstallmentDate,
       paymentType === 'total' ? null : lastInstallmentDate, // Pass last date for installments, null for total
       bcvUsd,
-      today // Pasar 'today' a calculateLoan
+      today, // Pasar 'today' a calculateLoan
+      activeRate
     ),
-    [amount, paymentType, singlePaymentDate, firstInstallmentDate, lastInstallmentDate, bcvUsd, today],
+    [amount, paymentType, singlePaymentDate, firstInstallmentDate, lastInstallmentDate, bcvUsd, today, activeRate],
   );
 
   // Helper function for formatting DD/MM input
