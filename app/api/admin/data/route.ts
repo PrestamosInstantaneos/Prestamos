@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: "'Solicitudes'!A:L", // Solicitudes de préstamos
+        range: "'Solicitudes'!A:N", // Solicitudes de préstamos
       })
     ])
 
@@ -74,6 +74,8 @@ export async function GET(req: NextRequest) {
         totalPagar: row[9] || "",
         bcvRate: row[10] || "",
         estado: row[11] || "Pendiente",
+        referencia: row[12] || "",
+        comprobanteLink: row[13] || "",
         rowIndex: idx + 2 // 1-based, skipping header row
       }))
 

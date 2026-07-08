@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { verifyToken, normalizePhoneNumber } from "@/lib/auth"
 import { getSheetsClient } from "@/lib/google-sheets"
+import { google } from "googleapis"
+import { Readable } from "stream"
 
 export const runtime = "nodejs"
 
@@ -17,7 +19,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "No autorizado. Acceso denegado." }, { status: 403 })
     }
 
-    const { timestamp, cedula, estado } = await req.json()
+    const { timestamp, cedula, estado, referencia, comprobanteBase64 } = await req.json()
     if (!timestamp || !cedula || !estado) {
       return NextResponse.json({ message: "Faltan campos obligatorios (timestamp, cedula, estado)." }, { status: 400 })
     }
@@ -25,10 +27,10 @@ export async function POST(req: NextRequest) {
     // 2. Obtener cliente de Sheets
     const { sheets, sheetId } = getSheetsClient()
 
-    // 3. Buscar la fila exacta del préstamo
+    // 3. Buscar la fila exacta del préstamo en range A:N
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: "'Solicitudes'!A:L",
+      range: "'Solicitudes'!A:N",
     })
 
     const rows = response.data.values || []
@@ -55,6 +57,8 @@ export async function POST(req: NextRequest) {
           monto: row[6] || "",
           fechas: row[8] || "",
           totalPagar: row[9] || "",
+          referenciaExistente: row[12] || "",
+          comprobanteExistente: row[13] || "",
         }
         break
       }
@@ -64,18 +68,140 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "No se encontró ningún préstamo coincidente." }, { status: 404 })
     }
 
-    // 4. Actualizar la celda del estado (columna L / índice 11, correspondiente a la columna 12)
-    // Usamos el rango 'Solicitudes'!L{row}
+    let driveLink = loanInfo.comprobanteExistente
+    let targetRef = referencia || loanInfo.referenciaExistente
+
+    // 4. Si se carga un comprobante de pago en Base64, subir a Google Drive con estructura organizada
+    if (estado === "Pagado" && comprobanteBase64 && targetRef) {
+      try {
+        const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID
+        const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET
+        const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN
+        const parentFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID
+
+        const oauth2Client = new google.auth.OAuth2(clientId, clientSecret)
+        oauth2Client.setCredentials({ refresh_token: refreshToken })
+        const drive = google.drive({ version: "v3", auth: oauth2Client })
+
+        // 4.1. Buscar o crear carpeta del cliente con su nombre completo
+        const clientFolderName = `${loanInfo.nombres} ${loanInfo.apellidos}`.trim()
+        let clientFolderId = ""
+
+        const searchClientFolder = await drive.files.list({
+          q: `mimeType = 'application/vnd.google-apps.folder' and name = '${clientFolderName.replace(/'/g, "\\'")}' and '${parentFolderId}' in parents and trashed = false`,
+          fields: "files(id)",
+          supportsAllDrives: true,
+          includeItemsFromAllDrives: true,
+        })
+
+        const clientFolders = searchClientFolder.data.files || []
+        if (clientFolders.length > 0 && clientFolders[0].id) {
+          clientFolderId = clientFolders[0].id
+        } else {
+          // Crear carpeta de cliente
+          const newFolder = await drive.files.create({
+            requestBody: {
+              name: clientFolderName,
+              mimeType: "application/vnd.google-apps.folder",
+              parents: parentFolderId ? [parentFolderId] : undefined,
+            },
+            supportsAllDrives: true,
+          })
+          clientFolderId = newFolder.data.id || ""
+        }
+
+        if (!clientFolderId) {
+          throw new Error("No se pudo resolver la carpeta del cliente en Google Drive.")
+        }
+
+        // 4.2. Buscar o crear subcarpeta de fecha (DD-MM-YYYY)
+        const now = new Date()
+        // Ajuste horario de Venezuela (UTC-4)
+        const venTime = new Date(now.getTime() + (now.getTimezoneOffset() - 240) * 60000)
+        const day = String(venTime.getDate()).padStart(2, "0")
+        const month = String(venTime.getMonth() + 1).padStart(2, "0")
+        const year = venTime.getFullYear()
+        const dateFolderName = `${day}-${month}-${year}`
+
+        let dateFolderId = ""
+        const searchDateFolder = await drive.files.list({
+          q: `mimeType = 'application/vnd.google-apps.folder' and name = '${dateFolderName}' and '${clientFolderId}' in parents and trashed = false`,
+          fields: "files(id)",
+          supportsAllDrives: true,
+          includeItemsFromAllDrives: true,
+        })
+
+        const dateFolders = searchDateFolder.data.files || []
+        if (dateFolders.length > 0 && dateFolders[0].id) {
+          dateFolderId = dateFolders[0].id
+        } else {
+          // Crear carpeta de fecha
+          const newDateFolder = await drive.files.create({
+            requestBody: {
+              name: dateFolderName,
+              mimeType: "application/vnd.google-apps.folder",
+              parents: [clientFolderId],
+            },
+            supportsAllDrives: true,
+          })
+          dateFolderId = newDateFolder.data.id || ""
+        }
+
+        if (!dateFolderId) {
+          throw new Error("No se pudo resolver la carpeta de la fecha en Google Drive.")
+        }
+
+        // 4.3. Procesar imagen Base64 y subir con el nombre <referencia>.png
+        const matches = comprobanteBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/)
+        const mimeType = matches ? matches[1] : "image/png"
+        const base64Data = matches ? matches[2] : comprobanteBase64
+        const buffer = Buffer.from(base64Data, "base64")
+
+        const bufferStream = new Readable()
+        bufferStream.push(buffer)
+        bufferStream.push(null)
+
+        const extension = mimeType.split("/")[1] || "png"
+        const fileName = `${targetRef.toString().trim()}.${extension}`
+
+        const fileResponse = await drive.files.create({
+          requestBody: {
+            name: fileName,
+            parents: [dateFolderId],
+          },
+          media: {
+            mimeType: mimeType,
+            body: bufferStream,
+          },
+          supportsAllDrives: true,
+        })
+
+        const fileId = fileResponse.data.id
+        if (fileId) {
+          driveLink = `https://drive.google.com/open?id=${fileId}`
+        } else {
+          throw new Error("No se pudo obtener el ID del comprobante subido a Google Drive.")
+        }
+      } catch (driveError: any) {
+        console.error("Error al subir comprobante a Google Drive:", driveError)
+        return NextResponse.json(
+          { message: `Error al subir el comprobante a Google Drive: ${driveError.message}` },
+          { status: 500 }
+        )
+      }
+    }
+
+    // 5. Actualizar la fila en Sheets (columnas L, M, N: Estado, Referencia, Enlace)
     await sheets.spreadsheets.values.update({
       spreadsheetId: sheetId,
-      range: `'Solicitudes'!L${rowIndexToUpdate}`,
+      range: `'Solicitudes'!L${rowIndexToUpdate}:N${rowIndexToUpdate}`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [[estado]],
+        values: [[estado, targetRef || "", driveLink || ""]],
       },
     })
 
-    // 5. Enviar notificación por Telegram si está configurado
+    // 6. Enviar notificación por Telegram si está configurado
     const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN
     const telegramChatId = process.env.TELEGRAM_CHAT_ID
 
@@ -86,6 +212,12 @@ export async function POST(req: NextRequest) {
         else if (estado === "Rechazado") statusIcon = "❌"
         else if (estado === "Pagado") statusIcon = "💰"
 
+        let receiptText = ""
+        if (estado === "Pagado") {
+          receiptText = `🔢 *Referencia:* ${targetRef || "N/A"}\n` +
+            `📂 *Comprobante:* ${driveLink ? `[Ver en Drive](${driveLink})` : "No adjuntado"}\n`
+        }
+
         const messageText = `📢 *Actualización de Préstamo* 📢\n\n` +
           `👤 *Cliente:* ${loanInfo.nombres} ${loanInfo.apellidos}\n` +
           `🪪 *Cédula:* ${loanInfo.cedula}\n` +
@@ -93,7 +225,8 @@ export async function POST(req: NextRequest) {
           `💰 *Monto:* ${loanInfo.monto}\n` +
           `📋 *Modalidad:* ${loanInfo.modalidad}\n` +
           `🗓️ *Fechas:* ${loanInfo.fechas}\n` +
-          `💵 *Total a pagar:* ${loanInfo.totalPagar}\n\n` +
+          `💵 *Total a pagar:* ${loanInfo.totalPagar}\n` +
+          receiptText + `\n` +
           `${statusIcon} *Nuevo Estatus:* \`${estado.toUpperCase()}\`\n` +
           `⚙️ _Actualizado de forma manual por el Administrador._`
 
@@ -113,7 +246,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, message: `Estatus del préstamo actualizado a ${estado} correctamente.` })
+    return NextResponse.json({
+      success: true,
+      message: `Estatus del préstamo actualizado a ${estado} correctamente.`,
+      referencia: targetRef || null,
+      comprobanteLink: driveLink || null,
+    })
   } catch (error: any) {
     console.error("Error al actualizar estatus de préstamo:", error)
     return NextResponse.json(

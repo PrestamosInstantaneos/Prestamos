@@ -105,7 +105,7 @@ export default function AdminDashboard() {
 
   // Sub-states: User Detail Modal
   const [selectedUser, setSelectedUser] = useState<any | null>(null)
-  const [verificando, setVerificando] = useState<"VERIFICADA" | "NO_VERIFICADA">("NO_VERIFICADA")
+  const [verificando, setVerificando] = useState<string>("NO_VERIFICADA")
   const [verificacionMotivo, setVerificacionMotivo] = useState("")
   const [savingUserVerify, setSavingUserVerify] = useState(false)
   const [verifyError, setVerifyError] = useState<string | null>(null)
@@ -130,9 +130,47 @@ export default function AdminDashboard() {
   const [manualError, setManualError] = useState<string | null>(null)
   const [manualSuccess, setManualSuccess] = useState<string | null>(null)
 
+  // Sub-states: WhatsApp Client Registration Form
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false)
+  const [waNombres, setWaNombres] = useState("")
+  const [waApellidos, setWaApellidos] = useState("")
+  const [waCedula, setWaCedula] = useState("")
+  const [waTelefono, setWaTelefono] = useState("")
+  const [waProfesion, setWaProfesion] = useState("")
+  const [waDiasCobro, setWaDiasCobro] = useState("")
+  const [waTrabajando, setWaTrabajando] = useState("Sí")
+  const [waCiudad, setWaCiudad] = useState("")
+  const [waMunicipio, setWaMunicipio] = useState("")
+  const [waCalle, setWaCalle] = useState("")
+  const [waReferencias, setWaReferencias] = useState("")
+  const [waSubmitting, setWaSubmitting] = useState(false)
+  const [waError, setWaError] = useState<string | null>(null)
+  const [waSuccess, setWaSuccess] = useState<string | null>(null)
+
+  // Sub-states: Capital Base & Working Capital (USD)
+  const [capitalBase, setCapitalBase] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("admin_capital_base")
+      return stored ? parseFloat(stored) || 1000 : 1000
+    }
+    return 1000
+  })
+  const [isEditingCapital, setIsEditingCapital] = useState(false)
+  const [tempCapital, setTempCapital] = useState(capitalBase.toString())
+
+  // Sub-states: Payment Receipt Verification Modal with OCR
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [selectedPaymentLoan, setSelectedPaymentLoan] = useState<any | null>(null)
+  const [paymentReferencia, setPaymentReferencia] = useState("")
+  const [paymentComprobanteBase64, setPaymentComprobanteBase64] = useState("")
+  const [paymentOcrScanning, setPaymentOcrScanning] = useState(false)
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null)
+
   // Sub-states: Search and filters
   const [userSearch, setUserSearch] = useState("")
-  const [userFilter, setUserFilter] = useState("all") // all, verified, unverified
+  const [userFilter, setUserFilter] = useState("all") // all, verified, unverified, whatsapp
 
   const [loanSearch, setLoanSearch] = useState("")
   const [loanFilter, setLoanFilter] = useState("all") // all, pendiente, aprobado, rechazado, pagado
@@ -180,7 +218,8 @@ export default function AdminDashboard() {
       const matchesFilter =
         userFilter === "all" ||
         (userFilter === "verified" && u.verificado === "VERIFICADA") ||
-        (userFilter === "unverified" && u.verificado !== "VERIFICADA")
+        (userFilter === "unverified" && u.verificado !== "VERIFICADA" && u.verificado !== "WHATSAPP") ||
+        (userFilter === "whatsapp" && u.verificado === "WHATSAPP")
 
       return matchesSearch && matchesFilter
     })
@@ -207,7 +246,8 @@ export default function AdminDashboard() {
   const stats = useMemo(() => {
     const totalUsersCount = users.length
     const verifiedUsersCount = users.filter((u: any) => u.verificado === "VERIFICADA").length
-    const unverifiedUsersCount = totalUsersCount - verifiedUsersCount
+    const whatsappUsersCount = users.filter((u: any) => u.verificado === "WHATSAPP").length
+    const unverifiedUsersCount = totalUsersCount - verifiedUsersCount - whatsappUsersCount
 
     const totalLoansCount = loans.length
     const pendingLoans = loans.filter((l: any) => l.estado.toLowerCase() === "pendiente")
@@ -225,26 +265,98 @@ export default function AdminDashboard() {
     let totalPaidBs = 0
     let totalInterestBs = 0 // totalPagar - monto (only for approved/paid)
 
+    // Classified by Source: Web vs Manual (Admin)
+    let webRequestedBs = 0
+    let webApprovedBs = 0
+    let webPaidBs = 0
+    let webInterestBs = 0
+
+    let manualRequestedBs = 0
+    let manualApprovedBs = 0
+    let manualPaidBs = 0
+    let manualInterestBs = 0
+
+    // Grouping by Month for growth chart
+    const monthlyEarningsMap: { [key: string]: number } = {}
+
     loans.forEach((l: any) => {
       const base = parseAmount(l.monto)
       const pay = parseAmount(l.totalPagar)
       const state = l.estado.toLowerCase()
+      const isManual = l.timestamp.includes("/") || !l.timestamp.includes("T")
 
       totalRequestedBs += base
+      if (isManual) {
+        manualRequestedBs += base
+      } else {
+        webRequestedBs += base
+      }
 
-      if (state === "aprobado" || state === "por pagar" || state === "pendiente por pagar" || state === "pagado") {
+      const isApprovedOrPaid = state === "aprobado" || state === "por pagar" || state === "pendiente por pagar" || state === "pagado"
+
+      if (isApprovedOrPaid) {
         totalApprovedBs += base
-        totalInterestBs += Math.max(0, pay - base)
+        const interest = Math.max(0, pay - base)
+        totalInterestBs += interest
+
+        if (isManual) {
+          manualApprovedBs += base
+          manualInterestBs += interest
+        } else {
+          webApprovedBs += base
+          webInterestBs += interest
+        }
+
+        // Grouping by month
+        let dateObj = new Date()
+        if (l.timestamp) {
+          if (l.timestamp.includes("T")) {
+            dateObj = new Date(l.timestamp)
+          } else {
+            const datePart = l.timestamp.split(",")[0]
+            const parts = datePart.split("/")
+            if (parts.length === 3) {
+              dateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]))
+            }
+          }
+        }
+        // Format: "Jul 26"
+        const monthLabel = dateObj.toLocaleString("es-VE", { month: "short", year: "2-digit" })
+        monthlyEarningsMap[monthLabel] = (monthlyEarningsMap[monthLabel] || 0) + (interest / bcvRate)
       }
 
       if (state === "pagado") {
         totalPaidBs += base
+        if (isManual) {
+          manualPaidBs += base
+        } else {
+          webPaidBs += base
+        }
       }
     })
+
+    // Sort months chronologically
+    const sortedMonths = Object.keys(monthlyEarningsMap).sort((a, b) => {
+      const parseMonthStr = (s: string) => {
+        const parts = s.split(" ")
+        const monthNames = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+        const cleanName = parts[0].replace(".", "").toLowerCase()
+        const mIdx = monthNames.indexOf(cleanName)
+        const yr = parseInt(parts[1]) || 0
+        return yr * 12 + (mIdx >= 0 ? mIdx : 0)
+      }
+      return parseMonthStr(a) - parseMonthStr(b)
+    })
+
+    const monthlyEarnings = sortedMonths.map((m) => ({
+      month: m,
+      earningsUsd: monthlyEarningsMap[m],
+    }))
 
     return {
       totalUsersCount,
       verifiedUsersCount,
+      whatsappUsersCount,
       unverifiedUsersCount,
       totalLoansCount,
       pendingCount: pendingLoans.length,
@@ -259,6 +371,17 @@ export default function AdminDashboard() {
       totalApprovedUsd: totalApprovedBs / bcvRate,
       totalPaidUsd: totalPaidBs / bcvRate,
       totalInterestUsd: totalInterestBs / bcvRate,
+      // Source classified
+      webRequestedUsd: webRequestedBs / bcvRate,
+      webApprovedUsd: webApprovedBs / bcvRate,
+      webPaidUsd: webPaidBs / bcvRate,
+      webInterestUsd: webInterestBs / bcvRate,
+      manualRequestedUsd: manualRequestedBs / bcvRate,
+      manualApprovedUsd: manualApprovedBs / bcvRate,
+      manualPaidUsd: manualPaidBs / bcvRate,
+      manualInterestUsd: manualInterestBs / bcvRate,
+      // Monthly earnings
+      monthlyEarnings,
     }
   }, [users, loans, bcvRate])
 
@@ -289,6 +412,186 @@ export default function AdminDashboard() {
       alert(err.message || "Error de red al actualizar préstamo")
     } finally {
       setUpdatingLoanId(null)
+    }
+  }
+
+  // Handle registering WhatsApp client manually
+  const handleRegisterWhatsAppClient = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setWaError(null)
+    setWaSuccess(null)
+
+    if (!waNombres || !waApellidos || !waCedula || !waTelefono) {
+      setWaError("Nombres, apellidos, cédula y teléfono son requeridos.")
+      return
+    }
+
+    setWaSubmitting(true)
+    try {
+      const res = await fetch("/api/admin/create-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombres: waNombres,
+          apellidos: waApellidos,
+          cedula: waCedula,
+          telefono: waTelefono,
+          profesion: waProfesion,
+          diasCobro: waDiasCobro,
+          trabajando: waTrabajando,
+          ciudad: waCiudad,
+          municipio: waMunicipio,
+          calle: waCalle,
+          referencias: waReferencias,
+        }),
+      })
+
+      const result = await res.json()
+      if (!res.ok) {
+        throw new Error(result.message || "Error al registrar cliente")
+      }
+
+      setWaSuccess("¡Cliente de WhatsApp registrado exitosamente!")
+      mutate()
+
+      // Reset fields
+      setWaNombres("")
+      setWaApellidos("")
+      setWaCedula("")
+      setWaTelefono("")
+      setWaProfesion("")
+      setWaDiasCobro("")
+      setWaTrabajando("Sí")
+      setWaCiudad("")
+      setWaMunicipio("")
+      setWaCalle("")
+      setWaReferencias("")
+
+      setTimeout(() => {
+        setIsWhatsAppModalOpen(false)
+        setWaSuccess(null)
+      }, 1500)
+    } catch (err: any) {
+      setWaError(err.message || "Error de red al registrar cliente")
+    } finally {
+      setWaSubmitting(false)
+    }
+  }
+
+  // Handle capital base update
+  const handleUpdateCapitalBase = (newCapital: string) => {
+    const parsed = parseFloat(newCapital)
+    if (isNaN(parsed) || parsed < 0) {
+      alert("El capital debe ser un número positivo.")
+      return
+    }
+    setCapitalBase(parsed)
+    localStorage.setItem("admin_capital_base", parsed.toString())
+    setIsEditingCapital(false)
+  }
+
+  // Open Payment receipt modal
+  const openPaymentVerificationModal = (loan: any) => {
+    setSelectedPaymentLoan(loan)
+    setPaymentReferencia(loan.referencia || "")
+    setPaymentComprobanteBase64("")
+    setPaymentError(null)
+    setPaymentSuccess(null)
+    setIsPaymentModalOpen(true)
+  }
+
+  // Handle payment file upload to base64
+  const handleComprobanteFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setPaymentComprobanteBase64(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // OCR scan for payment receipt reference
+  const handleScanReceiptOcr = async () => {
+    if (!paymentComprobanteBase64) {
+      alert("Por favor selecciona una imagen de comprobante primero.")
+      return
+    }
+    setPaymentOcrScanning(true)
+    setPaymentError(null)
+    try {
+      const res = await fetch("/api/admin/ocr-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ base64Image: paymentComprobanteBase64 }),
+      })
+
+      const result = await res.json()
+      if (!res.ok) {
+        throw new Error(result.message || "Error al escanear comprobante")
+      }
+
+      if (result.reference) {
+        setPaymentReferencia(result.reference)
+        alert(`¡Referencia detectada con éxito!: ${result.reference}`)
+      } else {
+        alert("OCR completado, pero no se pudo detectar el número de referencia automáticamente. Escríbelo de forma manual.")
+      }
+    } catch (err: any) {
+      setPaymentError(`Error en escaneo OCR: ${err.message}`)
+    } finally {
+      setPaymentOcrScanning(false)
+    }
+  }
+
+  // Submit payment confirmation
+  const handleSubmitPaymentVerification = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedPaymentLoan) return
+    if (!paymentReferencia.trim()) {
+      setPaymentError("El número de referencia de la transacción es obligatorio.")
+      return
+    }
+    if (!paymentComprobanteBase64) {
+      setPaymentError("Por favor carga la imagen del comprobante de pago.")
+      return
+    }
+
+    setPaymentSubmitting(true)
+    setPaymentError(null)
+    setPaymentSuccess(null)
+
+    try {
+      const res = await fetch("/api/admin/update-loan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          timestamp: selectedPaymentLoan.timestamp,
+          cedula: selectedPaymentLoan.cedula,
+          estado: "Pagado",
+          referencia: paymentReferencia,
+          comprobanteBase64: paymentComprobanteBase64,
+        }),
+      })
+
+      const result = await res.json()
+      if (!res.ok) {
+        throw new Error(result.message || "Error al confirmar pago")
+      }
+
+      setPaymentSuccess("¡Pago confirmado y comprobante subido correctamente a Google Drive!")
+      mutate()
+
+      setTimeout(() => {
+        setIsPaymentModalOpen(false)
+        setSelectedPaymentLoan(null)
+        setPaymentSuccess(null)
+      }, 1500)
+    } catch (err: any) {
+      setPaymentError(err.message || "Error al procesar la confirmación del pago")
+    } finally {
+      setPaymentSubmitting(false)
     }
   }
 
@@ -604,120 +907,166 @@ export default function AdminDashboard() {
 
         {/* Tab 1: Stats & Growth */}
         {activeTab === "stats" && (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="space-y-6 animate-fadeIn text-xs">
+            {/* Capital Base Editor & Working Capital Summary Card */}
+            <div className="bg-card border border-border p-6 rounded-2xl shadow-xl grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+              <div className="space-y-2">
+                <h3 className="text-muted-foreground font-bold tracking-wider uppercase text-[10px]">Capital Base de Trabajo</h3>
+                {isEditingCapital ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-bold font-mono text-primary">$</span>
+                    <input
+                      type="number"
+                      value={tempCapital}
+                      onChange={(e) => setTempCapital(e.target.value)}
+                      className="bg-zinc-950 border border-border rounded-lg px-2.5 py-1 text-sm focus:border-primary focus:outline-none font-mono w-28"
+                      placeholder="1000"
+                    />
+                    <button
+                      onClick={() => handleUpdateCapitalBase(tempCapital)}
+                      className="bg-primary text-primary-foreground px-3 py-1 rounded text-[11px] font-semibold hover:opacity-90"
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTempCapital(capitalBase.toString())
+                        setIsEditingCapital(false)
+                      }}
+                      className="border border-border hover:bg-secondary px-3 py-1 rounded text-[11px]"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <p className="text-2xl font-bold font-mono text-foreground">
+                      ${capitalBase.toLocaleString("en-US", { minimumFractionDigits: 2 })} <span className="text-xs text-muted-foreground font-normal">USD</span>
+                    </p>
+                    <button
+                      onClick={() => {
+                        setTempCapital(capitalBase.toString())
+                        setIsEditingCapital(true)
+                      }}
+                      className="text-xs text-primary hover:underline font-semibold"
+                    >
+                      (Editar)
+                    </button>
+                  </div>
+                )}
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  El capital base inicial invertido en la plataforma para el financiamiento de préstamos.
+                </p>
+              </div>
+
+              <div className="space-y-2 border-t md:border-t-0 md:border-l md:border-r border-border/80 md:px-6 py-4 md:py-0">
+                <h3 className="text-muted-foreground font-bold tracking-wider uppercase text-[10px]">Crecimiento Total</h3>
+                <p className="text-2xl font-bold text-emerald-400 font-mono">
+                  +{capitalBase > 0 ? ((stats.totalInterestUsd / capitalBase) * 100).toFixed(2) : "0.00"}%
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Proporción de interés acumulado sobre el capital inicial.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-muted-foreground font-bold tracking-wider uppercase text-[10px]">Capital de Trabajo Actual</h3>
+                <p className="text-2xl font-bold text-primary font-mono">
+                  ${(capitalBase + stats.totalInterestUsd).toLocaleString("en-US", { minimumFractionDigits: 2 })} <span className="text-xs text-muted-foreground font-normal">USD</span>
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Capital actual acumulado (Capital Base + Ganancias por Intereses).
+                </p>
+              </div>
+            </div>
+
             {/* Charts section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Earnings Growth Projection Visual */}
-              <div className="bg-card border border-border p-6 rounded-2xl shadow-xl">
-                <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
-                  Distribución Financiera de la Plataforma
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Distribution Table */}
+              <div className="bg-card border border-border p-6 rounded-2xl shadow-xl lg:col-span-2 space-y-4">
+                <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                  Clasificación y Contabilidad de Préstamos
                 </h3>
-                <div className="space-y-5">
-                  <div>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span>Total Solicitado</span>
-                      <span className="font-bold">Bs. {stats.totalRequestedBs.toLocaleString("es-VE")}</span>
-                    </div>
-                    <div className="w-full h-2.5 bg-zinc-950 border border-border rounded-full overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: "100%" }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span>Total Desembolsado (Aprobado/Pagado)</span>
-                      <span className="font-bold">
-                        Bs. {stats.totalApprovedBs.toLocaleString("es-VE")}{" "}
-                        <span className="text-[10px] text-muted-foreground">
-                          ({stats.totalRequestedBs > 0 ? Math.round((stats.totalApprovedBs / stats.totalRequestedBs) * 100) : 0}%)
-                        </span>
-                      </span>
-                    </div>
-                    <div className="w-full h-2.5 bg-zinc-950 border border-border rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 transition-all duration-1000"
-                        style={{ width: `${stats.totalRequestedBs > 0 ? (stats.totalApprovedBs / stats.totalRequestedBs) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span>Retorno Cobrado (Préstamos Pagados)</span>
-                      <span className="font-bold">
-                        Bs. {stats.totalPaidBs.toLocaleString("es-VE")}{" "}
-                        <span className="text-[10px] text-muted-foreground">
-                          ({stats.totalApprovedBs > 0 ? Math.round((stats.totalPaidBs / stats.totalApprovedBs) * 100) : 0}%)
-                        </span>
-                      </span>
-                    </div>
-                    <div className="w-full h-2.5 bg-zinc-950 border border-border rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500 transition-all duration-1000"
-                        style={{ width: `${stats.totalApprovedBs > 0 ? (stats.totalPaidBs / stats.totalApprovedBs) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1.5 text-primary">
-                      <span>Ganancia Estimada de Intereses</span>
-                      <span className="font-bold">
-                        Bs. {stats.totalInterestBs.toLocaleString("es-VE")}
-                      </span>
-                    </div>
-                    <div className="w-full h-2.5 bg-zinc-950 border border-border rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-primary to-orange-400 transition-all duration-1000"
-                        style={{ width: `${stats.totalApprovedBs > 0 ? Math.min(100, (stats.totalInterestBs / stats.totalApprovedBs) * 100) : 0}%` }}
-                      />
-                    </div>
-                  </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-zinc-950/80 border-b border-border text-muted-foreground font-semibold">
+                        <th className="px-4 py-2.5">Origen / Canal</th>
+                        <th className="px-4 py-2.5 text-right">Solicitado</th>
+                        <th className="px-4 py-2.5 text-right">Aprobado / Activo</th>
+                        <th className="px-4 py-2.5 text-right">Recuperado (Pagado)</th>
+                        <th className="px-4 py-2.5 text-right text-primary font-bold">Interés Generado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      <tr>
+                        <td className="px-4 py-3 font-semibold text-foreground">💻 Canal Web (Página)</td>
+                        <td className="px-4 py-3 text-right font-mono text-muted-foreground">${stats.webRequestedUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}</td>
+                        <td className="px-4 py-3 text-right font-mono text-muted-foreground">${stats.webApprovedUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}</td>
+                        <td className="px-4 py-3 text-right font-mono text-muted-foreground">${stats.webPaidUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}</td>
+                        <td className="px-4 py-3 text-right font-mono text-emerald-400 font-bold">${stats.webInterestUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 font-semibold text-foreground">🟢 Canal WhatsApp / Manual</td>
+                        <td className="px-4 py-3 text-right font-mono text-muted-foreground">${stats.manualRequestedUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}</td>
+                        <td className="px-4 py-3 text-right font-mono text-muted-foreground">${stats.manualApprovedUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}</td>
+                        <td className="px-4 py-3 text-right font-mono text-muted-foreground">${stats.manualPaidUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}</td>
+                        <td className="px-4 py-3 text-right font-mono text-emerald-400 font-bold">${stats.manualInterestUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      </tr>
+                      <tr className="bg-zinc-950/40 border-t border-border font-bold">
+                        <td className="px-4 py-3 text-foreground font-bold">💼 Total General (Plataforma)</td>
+                        <td className="px-4 py-3 text-right font-mono text-foreground">${stats.totalRequestedUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}</td>
+                        <td className="px-4 py-3 text-right font-mono text-foreground">${stats.totalApprovedUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}</td>
+                        <td className="px-4 py-3 text-right font-mono text-foreground">${stats.totalPaidUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}</td>
+                        <td className="px-4 py-3 text-right font-mono text-primary font-bold">${stats.totalInterestUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="text-[10px] text-muted-foreground flex gap-4 mt-2">
+                  <span>* Todos los valores se muestran expresados en **USD** a tasa BCV.</span>
+                  <span>* Total General incluye préstamos activos + cobrados de ambos canales.</span>
                 </div>
               </div>
 
-              {/* Loan Status Visual Breakdown */}
-              <div className="bg-card border border-border p-6 rounded-2xl shadow-xl">
-                <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
-                  Estatus de Solicitudes y Actividad
+              {/* Monthly growth bar chart */}
+              <div className="bg-card border border-border p-6 rounded-2xl shadow-xl space-y-4">
+                <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                  Crecimiento Mensual (USD)
                 </h3>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="border border-border bg-zinc-950/30 p-4 rounded-xl text-center">
-                    <p className="text-2xl font-bold tracking-tight text-amber-500">{stats.pendingCount}</p>
-                    <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mt-1">Pendientes</p>
-                    <div className="text-[9px] text-muted-foreground mt-0.5">En espera de verificación manual</div>
+                {stats.monthlyEarnings.length === 0 ? (
+                  <div className="h-44 border border-dashed border-border rounded-xl flex items-center justify-center text-muted-foreground text-xs">
+                    Sin intereses generados este mes
                   </div>
-
-                  <div className="border border-border bg-zinc-950/30 p-4 rounded-xl text-center">
-                    <p className="text-2xl font-bold tracking-tight text-blue-400">{stats.approvedCount}</p>
-                    <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mt-1">Activos</p>
-                    <div className="text-[9px] text-muted-foreground mt-0.5">Aprobados por cobrar/pagar</div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Visual Monthly bars chart */}
+                    <div className="h-32 flex items-end justify-between px-2 pt-4">
+                      {stats.monthlyEarnings.map((val, idx) => {
+                        const maxVal = Math.max(...stats.monthlyEarnings.map(m => m.earningsUsd), 1)
+                        const barHeight = (val.earningsUsd / maxVal) * 100
+                        return (
+                          <div key={idx} className="flex flex-col items-center group relative w-full">
+                            {/* Hover tooltip */}
+                            <div className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950 text-foreground border border-border px-2 py-0.5 rounded text-[9px] font-mono whitespace-nowrap pointer-events-none z-10">
+                              ${val.earningsUsd.toFixed(2)}
+                            </div>
+                            {/* Visual Bar */}
+                            <div
+                              className="w-5 bg-gradient-to-t from-primary to-orange-400 rounded-t transition-all duration-500 hover:from-primary/90 hover:to-orange-300 cursor-pointer"
+                              style={{ height: `${Math.max(5, barHeight)}%` }}
+                            />
+                            {/* Label */}
+                            <span className="text-[9px] text-muted-foreground uppercase font-semibold mt-2.5">{val.month}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div className="text-[9px] text-muted-foreground text-center border-t border-border/60 pt-2 uppercase font-bold tracking-wider">
+                      Progresión Cronológica de Ganancias por Mes
+                    </div>
                   </div>
-
-                  <div className="border border-border bg-zinc-950/30 p-4 rounded-xl text-center">
-                    <p className="text-2xl font-bold tracking-tight text-emerald-400">{stats.paidCount}</p>
-                    <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mt-1">Pagados</p>
-                    <div className="text-[9px] text-muted-foreground mt-0.5">Liquidaciones completadas</div>
-                  </div>
-
-                  <div className="border border-border bg-zinc-950/30 p-4 rounded-xl text-center">
-                    <p className="text-2xl font-bold tracking-tight text-zinc-400">{stats.rejectedCount}</p>
-                    <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mt-1">Rechazados</p>
-                    <div className="text-[9px] text-muted-foreground mt-0.5">No aprobados / fallidos</div>
-                  </div>
-                </div>
-
-                <div className="mt-5 border-t border-border pt-4">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Relación de Aprobación Global</span>
-                    <span className="font-semibold text-foreground">
-                      {stats.totalLoansCount > 0
-                        ? Math.round(((stats.approvedCount + stats.paidCount) / stats.totalLoansCount) * 100)
-                        : 0}%
-                    </span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -740,7 +1089,7 @@ export default function AdminDashboard() {
         )}
 
         {/* Tab 2: User Monitoring */}
-        {activeTab === "users" && (
+        {(activeTab === "users") && (
           <div className="space-y-4 animate-fadeIn">
             {/* Filters bar */}
             <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card border border-border p-4 rounded-xl shadow-lg">
@@ -755,7 +1104,7 @@ export default function AdminDashboard() {
                 />
               </div>
 
-              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
                 <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
                 <select
                   value={userFilter}
@@ -765,7 +1114,14 @@ export default function AdminDashboard() {
                   <option value="all">Verificación: Todos</option>
                   <option value="verified">Solo Verificados</option>
                   <option value="unverified">Solo Pendientes / No Verificados</option>
+                  <option value="whatsapp">Clientes WhatsApp</option>
                 </select>
+                <button
+                  onClick={() => setIsWhatsAppModalOpen(true)}
+                  className="w-full sm:w-auto rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-95 transition-all flex items-center justify-center gap-1.5 shadow"
+                >
+                  <PlusCircle className="h-4 w-4" /> Registrar WhatsApp
+                </button>
               </div>
             </div>
 
@@ -805,6 +1161,10 @@ export default function AdminDashboard() {
                             {u.verificado === "VERIFICADA" ? (
                               <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1.5 w-fit">
                                 <ShieldCheck className="h-3.5 w-3.5" /> VERIFICADA
+                              </span>
+                            ) : u.verificado === "WHATSAPP" ? (
+                              <span className="bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1.5 w-fit">
+                                <ShieldCheck className="h-3.5 w-3.5" /> CLIENTE WHATSAPP
                               </span>
                             ) : (
                               <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1.5 w-fit">
@@ -906,7 +1266,24 @@ export default function AdminDashboard() {
                             <td className="px-5 py-4 text-muted-foreground font-mono">{l.cedula}</td>
                             <td className="px-5 py-4 text-muted-foreground font-medium">{l.modalidad}</td>
                             <td className="px-5 py-4 text-foreground font-semibold font-mono">{l.monto}</td>
-                            <td className="px-5 py-4 text-primary font-semibold font-mono">{l.totalPagar}</td>
+                            <td className="px-5 py-4 text-primary font-semibold font-mono">
+                              <p>{l.totalPagar}</p>
+                              {l.referencia && (
+                                <p className="text-[10px] text-muted-foreground font-normal mt-0.5">
+                                  Ref: <span className="font-mono text-[11px] select-all text-foreground/80 font-bold bg-secondary/80 px-1 rounded">{l.referencia}</span>
+                                </p>
+                              )}
+                              {l.comprobanteLink && (
+                                <a
+                                  href={l.comprobanteLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-primary hover:underline flex items-center gap-0.5 mt-1 font-semibold"
+                                >
+                                  Comprobante ↗
+                                </a>
+                              )}
+                            </td>
                             <td className="px-5 py-4">
                               {est === "pendiente" && (
                                 <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 w-fit uppercase">
@@ -954,7 +1331,7 @@ export default function AdminDashboard() {
                                   {(est === "aprobado" || est === "activo" || est === "por pagar" || est === "pendiente por pagar" || est === "pendiente_por_pagar") && (
                                     <>
                                       <button
-                                        onClick={() => handleUpdateLoanStatus(l, "Pagado")}
+                                        onClick={() => openPaymentVerificationModal(l)}
                                         className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white px-2.5 py-1 rounded text-[10px] font-semibold transition-all"
                                       >
                                         COBRADO (PAGADO)
@@ -1478,6 +1855,268 @@ export default function AdminDashboard() {
                 className="w-full rounded-md bg-primary py-2.5 text-xs font-semibold tracking-widest text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-opacity"
               >
                 {manualSubmitting ? "REGISTRANDO PRÉSTAMO..." : "CONFIRMAR Y GUARDAR REGISTRO"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Registrar Cliente WhatsApp */}
+      {isWhatsAppModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-card border border-border w-full max-w-xl p-6 rounded-2xl relative shadow-2xl space-y-4 my-8">
+            <button
+              onClick={() => {
+                setIsWhatsAppModalOpen(false)
+                setWaError(null)
+                setWaSuccess(null)
+              }}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors p-1.5 hover:bg-secondary rounded-lg"
+            >
+              <XCircle className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-2 text-primary border-b border-border pb-3">
+              <PlusCircle className="h-5.5 w-5.5" />
+              <h3 className="font-heading text-base font-bold text-foreground">
+                Registrar Cliente de WhatsApp (Manual)
+              </h3>
+            </div>
+
+            <form onSubmit={handleRegisterWhatsAppClient} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Nombres:</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Juan Carlos"
+                    value={waNombres}
+                    onChange={(e) => setWaNombres(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Apellidos:</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Perez Diaz"
+                    value={waApellidos}
+                    onChange={(e) => setWaApellidos(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Cédula de Identidad:</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. V20123456"
+                    value={waCedula}
+                    onChange={(e) => setWaCedula(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Teléfono celular:</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. 04121234567"
+                    value={waTelefono}
+                    onChange={(e) => setWaTelefono(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Profesión:</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Electricista"
+                    value={waProfesion}
+                    onChange={(e) => setWaProfesion(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Días de cobro:</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Quincenal"
+                    value={waDiasCobro}
+                    onChange={(e) => setWaDiasCobro(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">¿Actualmente Trabajando?</label>
+                  <select
+                    value={waTrabajando}
+                    onChange={(e) => setWaTrabajando(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                  >
+                    <option value="Sí">Sí</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Ciudad:</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Barcelona"
+                    value={waCiudad}
+                    onChange={(e) => setWaCiudad(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Municipio:</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Bolivar"
+                    value={waMunicipio}
+                    onChange={(e) => setWaMunicipio(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground font-semibold">Calle / Sector / Dirección exacta:</label>
+                <input
+                  type="text"
+                  placeholder="Ej. Calle 3 de Barrio Sucre, Casa Nro 45..."
+                  value={waCalle}
+                  onChange={(e) => setWaCalle(e.target.value)}
+                  className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground font-semibold">Punto de Referencia (Ubicación):</label>
+                <input
+                  type="text"
+                  placeholder="Ej. Al frente de la panadería la espiga de oro..."
+                  value={waReferencias}
+                  onChange={(e) => setWaReferencias(e.target.value)}
+                  className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              {waError && <p className="text-xs text-destructive font-semibold">✗ {waError}</p>}
+              {waSuccess && <p className="text-xs text-emerald-500 font-semibold">✓ {waSuccess}</p>}
+
+              <button
+                type="submit"
+                disabled={waSubmitting || waSuccess !== null}
+                className="w-full rounded-md bg-primary py-2.5 text-xs font-semibold tracking-widest text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-opacity"
+              >
+                {waSubmitting ? "REGISTRANDO CLIENTE..." : "CONFIRMAR Y CREAR CLIENTE"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Verificación de Pago y Carga de Comprobante (OCR) */}
+      {isPaymentModalOpen && selectedPaymentLoan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-card border border-border w-full max-w-md p-6 rounded-2xl relative shadow-2xl space-y-4 my-8">
+            <button
+              onClick={() => {
+                setIsPaymentModalOpen(false)
+                setSelectedPaymentLoan(null)
+                setPaymentError(null)
+                setPaymentSuccess(null)
+              }}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors p-1.5 hover:bg-secondary rounded-lg"
+            >
+              <XCircle className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-2 text-primary border-b border-border pb-3">
+              <DollarSign className="h-5.5 w-5.5" />
+              <h3 className="font-heading text-base font-bold text-foreground">
+                Verificación de Pago del Préstamo
+              </h3>
+            </div>
+
+            <div className="bg-zinc-950/50 p-3.5 rounded-lg border border-border space-y-1.5 text-[11px]">
+              <p><span className="text-muted-foreground">Cliente:</span> <span className="font-semibold text-foreground">{selectedPaymentLoan.nombres} {selectedPaymentLoan.apellidos}</span></p>
+              <p><span className="text-muted-foreground">Cédula:</span> <span className="font-semibold font-mono">{selectedPaymentLoan.cedula}</span></p>
+              <p><span className="text-muted-foreground">Monto Pendiente:</span> <span className="text-primary font-bold font-mono">{selectedPaymentLoan.totalPagar}</span></p>
+              <p><span className="text-muted-foreground">Modalidad:</span> <span className="font-medium text-foreground">{selectedPaymentLoan.modalidad}</span></p>
+            </div>
+
+            <form onSubmit={handleSubmitPaymentVerification} className="space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground font-semibold">Subir Foto del Comprobante de Pago:</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleComprobanteFileChange}
+                  className="w-full text-xs text-muted-foreground file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90 file:cursor-pointer"
+                  required
+                />
+              </div>
+
+              {paymentComprobanteBase64 && (
+                <div className="flex items-center justify-between bg-zinc-950/30 border border-border p-3 rounded-lg gap-2">
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">Imagen del comprobante cargada.</span>
+                  <button
+                    type="button"
+                    disabled={paymentOcrScanning}
+                    onClick={handleScanReceiptOcr}
+                    className="rounded-md bg-secondary hover:bg-muted border border-border text-foreground px-3 py-1.5 text-[10px] font-semibold transition-all flex items-center gap-1 uppercase shrink-0 disabled:opacity-50"
+                  >
+                    {paymentOcrScanning ? (
+                      <>Escaneando...</>
+                    ) : (
+                      <>Escanear con OCR AI</>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground font-semibold">Número de Referencia de Transacción:</label>
+                <input
+                  type="text"
+                  placeholder="Ej. 24896740"
+                  value={paymentReferencia}
+                  onChange={(e) => setPaymentReferencia(e.target.value)}
+                  className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                  required
+                />
+                <p className="text-[9px] text-muted-foreground">
+                  * Este número servirá para auto-nombrar la imagen en Google Drive (`&lt;referencia&gt;.png`).
+                </p>
+              </div>
+
+              {paymentError && <p className="text-xs text-destructive font-semibold">✗ {paymentError}</p>}
+              {paymentSuccess && <p className="text-xs text-emerald-500 font-semibold">✓ {paymentSuccess}</p>}
+
+              <button
+                type="submit"
+                disabled={paymentSubmitting || paymentSuccess !== null}
+                className="w-full rounded-md bg-primary py-2.5 text-xs font-semibold tracking-widest text-primary-foreground hover:bg-primary/95 disabled:opacity-50 transition-opacity uppercase"
+              >
+                {paymentSubmitting ? "REGISTRANDO PAGO EN SISTEMA..." : "CONFIRMAR Y VERIFICAR PAGO"}
               </button>
             </form>
           </div>
