@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
     // 2. Obtener cliente de Sheets
     const { sheets, sheetId } = getSheetsClient()
 
-    // 3. Obtener usuarios y solicitudes en paralelo
-    const [usersResponse, loansResponse] = await Promise.all([
+    // 3. Obtener usuarios, solicitudes y registros manuales en paralelo
+    const [usersResponse, loansResponse, manualResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
         range: "A:Q", // Registros de usuarios (primera hoja)
@@ -29,11 +29,16 @@ export async function GET(req: NextRequest) {
       sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
         range: "'Solicitudes'!A:N", // Solicitudes de préstamos
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: "'Carga manual'!A:H", // Carga manual / WhatsApp
       })
     ])
 
     const userRows = usersResponse.data.values || []
     const loanRows = loansResponse.data.values || []
+    const manualRows = manualResponse.data.values || []
 
     // 4. Procesar y filtrar filas
     // Omitir fila de cabecera si existe (ej. si la primera columna es "Nombres" o similar)
@@ -79,10 +84,36 @@ export async function GET(req: NextRequest) {
         rowIndex: idx + 2 // 1-based, skipping header row
       }))
 
+    // Procesar registros manuales propagando el nombre del solicitante hacia abajo en filas vacías
+    let lastSeenName = ""
+    const manualLoans = manualRows
+      .filter((row, idx) => idx > 0 && row && (row[0] || row[1] || row[2]))
+      .map((row, idx) => {
+        let name = (row[0] || "").toString().trim()
+        if (name) {
+          lastSeenName = name
+        } else {
+          name = lastSeenName
+        }
+
+        return {
+          solicitante: name,
+          estado: row[1] || "Pendiente",
+          montoSolicitado: row[2] || "0",
+          deuda: row[3] || "0",
+          fechaSolicitud: row[4] || "",
+          modalidad: row[5] || "",
+          fechaPago: row[6] || "",
+          mora: row[7] || "N/A",
+          rowIndex: idx + 2 // 1-based, skipping header row
+        }
+      })
+
     return NextResponse.json({
       success: true,
       users,
       loans,
+      manualLoans,
     })
   } catch (error: any) {
     console.error("Error al obtener datos de administración:", error)

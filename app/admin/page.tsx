@@ -58,7 +58,7 @@ export default function AdminDashboard() {
   const router = useRouter()
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [user, setUser] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<"stats" | "users" | "loans">("stats")
+  const [activeTab, setActiveTab] = useState<"stats" | "users" | "loans" | "manual">("stats")
 
   // Verification checks on load
   useEffect(() => {
@@ -199,12 +199,110 @@ export default function AdminDashboard() {
   const [loanSearch, setLoanSearch] = useState("")
   const [loanFilter, setLoanFilter] = useState("all") // all, pendiente, aprobado, rechazado, pagado
 
+  // Sub-states: Carga Manual Search and filters
+  const [manualSearch, setManualSearch] = useState("")
+  const [manualFilter, setManualFilter] = useState("all") // all, registered, unregistered
+
   // Action loading states
   const [updatingLoanId, setUpdatingLoanId] = useState<string | null>(null)
 
   // Helper lists from SWR data
   const users = data?.users || []
   const loans = data?.loans || []
+  const manualLoans = data?.manualLoans || []
+
+  // Memo para agrupar y analizar solicitantes de la Carga Manual
+  const uniqueManualApplicants = useMemo(() => {
+    const map = new Map<string, any>()
+    manualLoans.forEach((ml: any) => {
+      const key = ml.solicitante.trim()
+      if (!key || key.toLowerCase() === "solicitantes") return
+      
+      if (!map.has(key)) {
+        // Buscar si coincide con un usuario registrado
+        let matchedUser = null
+        const normalizedKey = key.toLowerCase().replace(/\s/g, "")
+        
+        // Intentar buscar por cédula (si es numérico o contiene números)
+        const isNumericKey = /^\d+$/.test(normalizedKey) || (normalizedKey.length >= 6 && /\d{6,}/.test(normalizedKey))
+        
+        if (isNumericKey) {
+          const numbersOnly = normalizedKey.replace(/\D/g, "")
+          matchedUser = users.find((u: any) => {
+            const userCedulaClean = u.cedula.replace(/\D/g, "")
+            return userCedulaClean && userCedulaClean.includes(numbersOnly)
+          })
+        }
+        
+        // Si no se encuentra por cédula, intentar por nombre
+        if (!matchedUser) {
+          matchedUser = users.find((u: any) => {
+            const userNameClean = `${u.nombres} ${u.apellidos}`.toLowerCase().replace(/\s/g, "")
+            return userNameClean.includes(normalizedKey) || normalizedKey.includes(userNameClean)
+          })
+        }
+        
+        map.set(key, {
+          nombreOriginal: key,
+          loansCount: 1,
+          totalMonto: parseFloat(ml.montoSolicitado.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0,
+          totalDeuda: parseFloat(ml.deuda.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0,
+          matchedUser: matchedUser || null,
+          isRegistered: !!matchedUser,
+          loansList: [ml]
+        })
+      } else {
+        const item = map.get(key)
+        item.loansCount += 1
+        item.totalMonto += parseFloat(ml.montoSolicitado.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0
+        item.totalDeuda += parseFloat(ml.deuda.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0
+        item.loansList.push(ml)
+      }
+    })
+    
+    return Array.from(map.values())
+  }, [manualLoans, users])
+
+  // Filtrado de solicitantes de Carga Manual
+  const filteredManualApplicants = useMemo(() => {
+    return uniqueManualApplicants.filter((ma: any) => {
+      const search = manualSearch.toLowerCase().trim()
+      const matchesSearch = search === "" || ma.nombreOriginal.toLowerCase().includes(search)
+      
+      const matchesFilter =
+        manualFilter === "all" ||
+        (manualFilter === "registered" && ma.isRegistered) ||
+        (manualFilter === "unregistered" && !ma.isRegistered)
+        
+      return matchesSearch && matchesFilter
+    })
+  }, [uniqueManualApplicants, manualSearch, manualFilter])
+
+  // Abre el modal de registro WhatsApp prellenado para un solicitante
+  const openManualRegisterForWhatsApp = (applicant: any) => {
+    setWaNombres("")
+    setWaApellidos("")
+    setWaCedula("")
+    setWaTelefono("")
+    setWaProfesion("")
+    setWaDiasCobro("")
+    setWaTrabajando("Sí")
+    setWaCiudad("")
+    setWaMunicipio("")
+    setWaCalle("")
+    setWaReferencias("")
+    
+    const name = applicant.nombreOriginal
+    const isNumeric = /^\d+$/.test(name) || (name.length >= 6 && /\d{6,}/.test(name))
+    
+    if (isNumeric) {
+      setWaCedula(name.replace(/\D/g, ""))
+    } else {
+      setWaNombres(name)
+    }
+    
+    setIsWhatsAppModalOpen(true)
+  }
 
   // Helper to calculate user level and total paid volume dynamically in frontend
   const getUserLevelInfo = useMemo(() => {
@@ -1006,6 +1104,15 @@ export default function AdminDashboard() {
             Control de Préstamos
             {activeTab === "loans" && <div className="absolute bottom-0 inset-x-0 h-0.5 bg-primary" />}
           </button>
+          <button
+            onClick={() => setActiveTab("manual")}
+            className={`px-4 py-3 text-xs sm:text-sm font-semibold tracking-wider uppercase transition-colors relative ${
+              activeTab === "manual" ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Carga Manual (WhatsApp)
+            {activeTab === "manual" && <div className="absolute bottom-0 inset-x-0 h-0.5 bg-primary" />}
+          </button>
         </div>
 
         {/* Loading overlay when re-validating */}
@@ -1748,6 +1855,123 @@ export default function AdminDashboard() {
                           </tr>
                         )
                       })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: Carga Manual (WhatsApp) */}
+        {activeTab === "manual" && (
+          <div className="space-y-4 animate-fadeIn">
+            {/* Filters bar */}
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card border border-border p-4 rounded-xl shadow-lg">
+              <div className="relative w-full sm:max-w-md">
+                <Search className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Buscar solicitante manual..."
+                  value={manualSearch}
+                  onChange={(e) => setManualSearch(e.target.value)}
+                  className="w-full bg-zinc-950 border border-border rounded-lg pl-10 pr-4 py-2 text-xs focus:border-primary focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                <select
+                  value={manualFilter}
+                  onChange={(e) => setManualFilter(e.target.value)}
+                  className="w-full sm:w-auto bg-zinc-950 border border-border rounded-lg px-3.5 py-2 text-xs focus:border-primary focus:outline-none"
+                >
+                  <option value="all">Filtro: Todos</option>
+                  <option value="registered">Solo Registrados (Clientes)</option>
+                  <option value="unregistered">Solo No Registrados (Pendientes WhatsApp)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Manual Applicants table */}
+            <div className="bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-zinc-950/80 border-b border-border text-muted-foreground font-semibold uppercase tracking-wider">
+                      <th className="px-5 py-3.5">Solicitante (Hoja Carga Manual)</th>
+                      <th className="px-5 py-3.5 text-center">Nro Préstamos</th>
+                      <th className="px-5 py-3.5 text-right">Total Solicitado</th>
+                      <th className="px-5 py-3.5 text-right">Total Deuda</th>
+                      <th className="px-5 py-3.5">Estatus Base Datos</th>
+                      <th className="px-5 py-3.5 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {filteredManualApplicants.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">
+                          No se encontraron solicitantes en la hoja de carga manual.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredManualApplicants.map((ma: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-zinc-950/20 transition-colors">
+                          <td className="px-5 py-4">
+                            <span className="font-bold text-foreground text-sm font-mono block">{ma.nombreOriginal}</span>
+                            <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                              Encontrado en fila(s): {ma.loansList.map((l: any) => `#${l.rowIndex}`).join(", ")}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-center font-bold text-foreground font-mono">
+                            {ma.loansCount}
+                          </td>
+                          <td className="px-5 py-4 text-right font-semibold text-foreground font-mono">
+                            Bs. {ma.totalMonto.toLocaleString("es-VE", { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-5 py-4 text-right font-semibold text-primary font-mono">
+                            Bs. {ma.totalDeuda.toLocaleString("es-VE", { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-5 py-4">
+                            {ma.isRegistered ? (
+                              <div className="space-y-1">
+                                <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1.5 w-fit">
+                                  <ShieldCheck className="h-3.5 w-3.5" /> REGISTRADO EN SISTEMA
+                                </span>
+                                <span className="text-[10px] text-muted-foreground block truncate max-w-[200px]">
+                                  {ma.matchedUser.nombres} {ma.matchedUser.apellidos} ({ma.matchedUser.telefono})
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1.5 w-fit">
+                                  <ShieldAlert className="h-3.5 w-3.5 animate-pulse" /> NO REGISTRADO (WHATSAPP)
+                                </span>
+                                <span className="text-[10px] text-muted-foreground block">
+                                  Requiere registrar como cliente para contabilidad
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-5 py-4 text-right">
+                            {ma.isRegistered ? (
+                              <button
+                                onClick={() => openUserDetail(ma.matchedUser)}
+                                className="rounded-md bg-secondary border border-border text-foreground hover:bg-muted px-3 py-1.5 text-[10px] font-semibold transition-colors flex items-center gap-1 ml-auto uppercase"
+                              >
+                                Ver Ficha
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => openManualRegisterForWhatsApp(ma)}
+                                className="rounded-md bg-primary text-primary-foreground hover:opacity-90 px-3 py-1.5 text-[10px] font-bold transition-all flex items-center gap-1 ml-auto uppercase shadow"
+                              >
+                                <PlusCircle className="h-3.5 w-3.5" /> Cargar Datos
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
