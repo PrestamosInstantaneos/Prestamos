@@ -27,10 +27,15 @@ export async function POST(req: NextRequest) {
       modalidad,
       fechas,
       referencia,
-      estado
+      estado,
+      moneda
     } = await req.json()
 
     const { sheets, sheetId } = getSheetsClient()
+
+    const cur = moneda || "Bs."
+    const formattedMonto = typeof monto === "number" ? `${cur} ${monto.toLocaleString("es-VE")}` : monto
+    const formattedTotalPagar = typeof totalPagar === "number" ? `${cur} ${totalPagar.toLocaleString("es-VE")}` : totalPagar
 
     if (isManual) {
       if (!rowIndex) {
@@ -43,7 +48,7 @@ export async function POST(req: NextRequest) {
         range: `'Carga manual'!B${rowIndex}:D${rowIndex}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-          values: [[estado, monto, totalPagar]],
+          values: [[estado, formattedMonto, formattedTotalPagar]],
         },
       })
 
@@ -105,7 +110,7 @@ export async function POST(req: NextRequest) {
         range: `'Solicitudes'!F${rowIndexToUpdate}:G${rowIndexToUpdate}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-          values: [[modalidad, monto]],
+          values: [[modalidad, formattedMonto]],
         },
       })
 
@@ -115,7 +120,7 @@ export async function POST(req: NextRequest) {
         range: `'Solicitudes'!I${rowIndexToUpdate}:J${rowIndexToUpdate}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-          values: [[fechas, totalPagar]],
+          values: [[fechas, formattedTotalPagar]],
         },
       })
 

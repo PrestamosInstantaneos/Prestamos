@@ -145,6 +145,7 @@ export default function AdminDashboard() {
   const [editFechas, setEditFechas] = useState("")
   const [editReferencia, setEditReferencia] = useState("")
   const [editEstado, setEditEstado] = useState("Aprobado")
+  const [editMoneda, setEditMoneda] = useState("Bs.")
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const [editSuccess, setEditSuccess] = useState<string | null>(null)
@@ -1265,12 +1266,19 @@ export default function AdminDashboard() {
     const cleanMonto = l.monto ? l.monto.toString().replace(/[^\d.,-]/g, "") : ""
     const cleanTotalPagar = l.totalPagar ? l.totalPagar.toString().replace(/[^\d.,-]/g, "") : ""
     
+    // Detect currency symbol
+    const amtStr = l.monto ? l.monto.toString() : ""
+    const hasDollar = amtStr.includes("$")
+    const hasEuro = amtStr.includes("€")
+    const symbol = hasDollar ? "$" : (hasEuro ? "€" : "Bs.")
+
     setEditMonto(cleanMonto)
     setEditTotalPagar(cleanTotalPagar)
     setEditModalidad(l.modalidad || "Pago Total")
     setEditFechas(l.fechas || l.timestamp || "")
     setEditReferencia(l.referencia === "N/A" ? "" : (l.referencia || ""))
     setEditEstado(l.estado || "Aprobado")
+    setEditMoneda(symbol)
     
     setEditError(null)
     setEditSuccess(null)
@@ -1314,7 +1322,8 @@ export default function AdminDashboard() {
           modalidad: editModalidad,
           fechas: editFechas,
           referencia: editReferencia,
-          estado: editEstado
+          estado: editEstado,
+          moneda: editMoneda
         }),
       })
 
@@ -3647,9 +3656,22 @@ export default function AdminDashboard() {
             </div>
 
             <form onSubmit={handleEditLoanDetails} className="space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-2.5">
                 <div className="space-y-1.5">
-                  <label className="text-muted-foreground font-semibold">Monto Solicitado:</label>
+                  <label className="text-muted-foreground font-semibold">Moneda:</label>
+                  <select
+                    value={editMoneda}
+                    onChange={(e) => setEditMoneda(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-2 py-2 text-xs focus:border-primary focus:outline-none"
+                  >
+                    <option value="Bs.">Bs.</option>
+                    <option value="$">$ (USD)</option>
+                    <option value="€">€ (EUR)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Monto Sol.:</label>
                   <input
                     type="number"
                     step="0.01"
@@ -3661,7 +3683,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-muted-foreground font-semibold">Total a Pagar / Deuda:</label>
+                  <label className="text-muted-foreground font-semibold">Deuda Total:</label>
                   <input
                     type="number"
                     step="0.01"
