@@ -2453,6 +2453,21 @@ export default function AdminDashboard() {
                                   Comprobante ↗
                                 </a>
                               )}
+                              {/* Historial de Abonos / Pagos Parciales */}
+                              {l.notaPago && l.notaPago.trim() !== "" && (
+                                <div className="mt-2 space-y-1 font-sans">
+                                  <p className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Abonos:</p>
+                                  {l.notaPago.split("|").map((item: string, idx: number) => {
+                                    const clean = item.trim()
+                                    if (!clean) return null
+                                    return (
+                                      <p key={idx} className="text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded w-fit font-semibold leading-normal">
+                                        ✓ {clean}
+                                      </p>
+                                    )
+                                  })}
+                                </div>
+                              )}
                             </td>
                             <td className="px-5 py-4">
                               {est === "pendiente" && (
