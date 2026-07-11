@@ -28,14 +28,16 @@ export async function POST(req: NextRequest) {
       fechas,
       referencia,
       estado,
-      moneda
+      monedaMonto,
+      monedaDeuda
     } = await req.json()
 
     const { sheets, sheetId } = getSheetsClient()
 
-    const cur = moneda || "Bs."
-    const formattedMonto = typeof monto === "number" ? `${cur} ${monto.toLocaleString("es-VE")}` : monto
-    const formattedTotalPagar = typeof totalPagar === "number" ? `${cur} ${totalPagar.toLocaleString("es-VE")}` : totalPagar
+    const curMonto = monedaMonto || "Bs."
+    const curDeuda = monedaDeuda || "Bs."
+    const formattedMonto = typeof monto === "number" ? `${curMonto} ${monto.toLocaleString("es-VE")}` : monto
+    const formattedTotalPagar = typeof totalPagar === "number" ? `${curDeuda} ${totalPagar.toLocaleString("es-VE")}` : totalPagar
 
     if (isManual) {
       if (!rowIndex) {

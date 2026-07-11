@@ -145,7 +145,8 @@ export default function AdminDashboard() {
   const [editFechas, setEditFechas] = useState("")
   const [editReferencia, setEditReferencia] = useState("")
   const [editEstado, setEditEstado] = useState("Aprobado")
-  const [editMoneda, setEditMoneda] = useState("Bs.")
+  const [editMonedaMonto, setEditMonedaMonto] = useState("Bs.")
+  const [editMonedaDeuda, setEditMonedaDeuda] = useState("Bs.")
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const [editSuccess, setEditSuccess] = useState<string | null>(null)
@@ -1266,11 +1267,16 @@ export default function AdminDashboard() {
     const cleanMonto = l.monto ? l.monto.toString().replace(/[^\d.,-]/g, "") : ""
     const cleanTotalPagar = l.totalPagar ? l.totalPagar.toString().replace(/[^\d.,-]/g, "") : ""
     
-    // Detect currency symbol
+    // Detect currency symbols independently
     const amtStr = l.monto ? l.monto.toString() : ""
-    const hasDollar = amtStr.includes("$")
-    const hasEuro = amtStr.includes("€")
-    const symbol = hasDollar ? "$" : (hasEuro ? "€" : "Bs.")
+    const hasDollarAmt = amtStr.includes("$")
+    const hasEuroAmt = amtStr.includes("€")
+    const symbolMonto = hasDollarAmt ? "$" : (hasEuroAmt ? "€" : "Bs.")
+
+    const debtStr = l.totalPagar ? l.totalPagar.toString() : ""
+    const hasDollarDebt = debtStr.includes("$")
+    const hasEuroDebt = debtStr.includes("€")
+    const symbolDeuda = hasDollarDebt ? "$" : (hasEuroDebt ? "€" : "Bs.")
 
     setEditMonto(cleanMonto)
     setEditTotalPagar(cleanTotalPagar)
@@ -1278,7 +1284,8 @@ export default function AdminDashboard() {
     setEditFechas(l.fechas || l.timestamp || "")
     setEditReferencia(l.referencia === "N/A" ? "" : (l.referencia || ""))
     setEditEstado(l.estado || "Aprobado")
-    setEditMoneda(symbol)
+    setEditMonedaMonto(symbolMonto)
+    setEditMonedaDeuda(symbolDeuda)
     
     setEditError(null)
     setEditSuccess(null)
@@ -1323,7 +1330,8 @@ export default function AdminDashboard() {
           fechas: editFechas,
           referencia: editReferencia,
           estado: editEstado,
-          moneda: editMoneda
+          monedaMonto: editMonedaMonto,
+          monedaDeuda: editMonedaDeuda
         }),
       })
 
@@ -1341,6 +1349,8 @@ export default function AdminDashboard() {
         setConvAmount("")
         setConvFrom("USD")
         setConvTo("VES")
+        setEditMonedaMonto("Bs.")
+        setEditMonedaDeuda("Bs.")
         setEditSuccess(null)
       }, 1500)
     } catch (err: any) {
@@ -3633,6 +3643,8 @@ export default function AdminDashboard() {
                 setConvAmount("")
                 setConvFrom("USD")
                 setConvTo("VES")
+                setEditMonedaMonto("Bs.")
+                setEditMonedaDeuda("Bs.")
                 setEditError(null)
                 setEditSuccess(null)
               }}
@@ -3656,42 +3668,53 @@ export default function AdminDashboard() {
             </div>
 
             <form onSubmit={handleEditLoanDetails} className="space-y-3.5 text-xs">
-              <div className="grid grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-2 gap-4 border-b border-border/40 pb-3">
+                {/* Monto Solicitado Selector & Input */}
                 <div className="space-y-1.5">
-                  <label className="text-muted-foreground font-semibold">Moneda:</label>
-                  <select
-                    value={editMoneda}
-                    onChange={(e) => setEditMoneda(e.target.value)}
-                    className="w-full bg-zinc-950 border border-border rounded-lg px-2 py-2 text-xs focus:border-primary focus:outline-none"
-                  >
-                    <option value="Bs.">Bs.</option>
-                    <option value="$">$ (USD)</option>
-                    <option value="€">€ (EUR)</option>
-                  </select>
+                  <label className="text-muted-foreground font-semibold">Monto Solicitado:</label>
+                  <div className="flex gap-1.5">
+                    <select
+                      value={editMonedaMonto}
+                      onChange={(e) => setEditMonedaMonto(e.target.value)}
+                      className="bg-zinc-950 border border-border rounded-lg px-1.5 py-2 text-xs focus:border-primary focus:outline-none shrink-0"
+                    >
+                      <option value="Bs.">Bs.</option>
+                      <option value="$">$</option>
+                      <option value="€">€</option>
+                    </select>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editMonto}
+                      onChange={(e) => setEditMonto(e.target.value)}
+                      className="w-full bg-zinc-950 border border-border rounded-lg px-2 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                      required
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-muted-foreground font-semibold">Monto Sol.:</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={editMonto}
-                    onChange={(e) => setEditMonto(e.target.value)}
-                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
-                    required
-                  />
-                </div>
-
+                {/* Deuda Total Selector & Input */}
                 <div className="space-y-1.5">
                   <label className="text-muted-foreground font-semibold">Deuda Total:</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={editTotalPagar}
-                    onChange={(e) => setEditTotalPagar(e.target.value)}
-                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
-                    required
-                  />
+                  <div className="flex gap-1.5">
+                    <select
+                      value={editMonedaDeuda}
+                      onChange={(e) => setEditMonedaDeuda(e.target.value)}
+                      className="bg-zinc-950 border border-border rounded-lg px-1.5 py-2 text-xs focus:border-primary focus:outline-none shrink-0"
+                    >
+                      <option value="Bs.">Bs.</option>
+                      <option value="$">$</option>
+                      <option value="€">€</option>
+                    </select>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editTotalPagar}
+                      onChange={(e) => setEditTotalPagar(e.target.value)}
+                      className="w-full bg-zinc-950 border border-border rounded-lg px-2 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
