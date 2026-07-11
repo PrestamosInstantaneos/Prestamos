@@ -448,6 +448,22 @@ export function LoanHistory() {
                             <span className="text-xs text-slate-300 italic leading-relaxed">{loan.observacion}</span>
                           </div>
                         )}
+                        {loan.notaPago && loan.notaPago.trim() !== "" && (
+                          <div className="flex flex-col gap-1 border-t border-white/5 pt-2 mt-1">
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Historial de Abonos / Pagos:</span>
+                            <div className="space-y-1 mt-0.5">
+                              {loan.notaPago.split("|").map((item: string, idx: number) => {
+                                const cleanItem = item.trim()
+                                if (!cleanItem) return null
+                                return (
+                                  <div key={idx} className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold px-2 py-1 rounded">
+                                    ✓ {cleanItem}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 

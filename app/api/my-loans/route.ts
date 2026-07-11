@@ -158,11 +158,11 @@ export async function GET(req: NextRequest) {
     const [response, response3, responseUsers] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: "'Solicitudes'!A:L",
+        range: "'Solicitudes'!A:P",
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: "'Carga manual'!A:J",
+        range: "'Carga manual'!A:L",
       }).catch((err) => {
         console.error("Error al obtener Carga manual:", err)
         return { data: { values: [] } }
@@ -204,7 +204,9 @@ export async function GET(req: NextRequest) {
           tasaBCV: row[10] || "",
           estado: row[11] || "Pendiente",
           mora: "",
-          observacion: "",
+          observacion: row[14] || "",
+          notaPago: row[14] || "",
+          referencia: row[12] || "",
           source: "Solicitudes",
         }
       })
@@ -277,7 +279,9 @@ export async function GET(req: NextRequest) {
           tasaBCV: "N/A",
           estado,
           mora,
-          observacion,
+          observacion: row[10] || row[8] || "",
+          notaPago: row[10] || "",
+          referencia: row[8] || "",
           source: "Carga manual",
         })
       }

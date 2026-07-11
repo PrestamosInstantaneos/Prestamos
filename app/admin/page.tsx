@@ -2985,16 +2985,26 @@ export default function AdminDashboard() {
                             <td className="px-4 py-3 text-right font-mono font-semibold">{l.monto}</td>
                             <td className="px-4 py-3 text-right text-primary font-mono font-semibold">{l.totalPagar}</td>
                             <td className="px-4 py-3 text-muted-foreground font-mono text-[10px] leading-tight">
-                              {l.mora !== "N/A" ? (
-                                <span className="text-red-400 font-semibold">Mora: {l.mora}</span>
-                              ) : l.referencia !== "N/A" ? (
-                                <div>
-                                  <p>Ref: <span className="font-semibold text-foreground">{l.referencia}</span> {l.monedaPago && `(${l.monedaPago})`}</p>
-                                  {l.notaPago && <p className="text-[9px] italic text-muted-foreground mt-0.5 max-w-[140px] truncate" title={l.notaPago}>Nota: {l.notaPago}</p>}
-                                </div>
-                              ) : (
-                                <span>-</span>
+                              {l.mora !== "N/A" && l.mora && (
+                                <span className="text-red-400 font-semibold block mb-1">Mora: {l.mora}</span>
                               )}
+                              {l.referencia && l.referencia !== "N/A" && (
+                                <p className="mb-1">Ref: <span className="font-semibold text-foreground">{l.referencia}</span> {l.monedaPago && `(${l.monedaPago})`}</p>
+                              )}
+                              {l.notaPago && (
+                                <div className="space-y-0.5 mt-1">
+                                  {l.notaPago.split("|").map((item: string, idx: number) => {
+                                    const clean = item.trim()
+                                    if (!clean) return null
+                                    return (
+                                      <p key={idx} className="text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1 py-0.5 rounded w-fit">
+                                        ✓ {clean}
+                                      </p>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                              {!(l.mora && l.mora !== "N/A") && !(l.referencia && l.referencia !== "N/A") && !l.notaPago && <span>-</span>}
                             </td>
                             <td className="px-4 py-3 text-center">
                               <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
