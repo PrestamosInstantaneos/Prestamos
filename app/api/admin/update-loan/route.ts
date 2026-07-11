@@ -254,11 +254,11 @@ export async function POST(req: NextRequest) {
     let isFullyPaid = estado.toLowerCase() === "pagado"
 
     if (isAbono && parseFloat(montoAbono) > 0) {
-      const currentDebt = isManual ? parseCurrencyValue(manualRow[3]) : parseCurrencyValue(loanInfo.totalPagar)
+      const currentDebt = parseCurrencyValue(loanInfo.totalPagar)
       const parsedAbono = parseFloat(montoAbono)
       const newDebtVal = Math.max(0, currentDebt - parsedAbono)
 
-      const originalString = isManual ? (manualRow[3] || "") : (loanInfo.totalPagar || "")
+      const originalString = loanInfo.totalPagar || ""
       const hasDollar = originalString.toString().includes("$")
       const hasEuro = originalString.toString().includes("€")
       const symbol = hasDollar ? "$" : (hasEuro ? "€" : "Bs.")
@@ -288,7 +288,7 @@ export async function POST(req: NextRequest) {
 
       // Construct historical abono note
       const abonoNote = `Abono: ${targetMoneda} ${parsedAbono} (Ref: ${targetRef || "S/R"})`
-      const existingNote = isManual ? (manualRow[10] || "") : (loanInfo.notaExistente || "")
+      const existingNote = loanInfo.notaExistente || ""
       targetNota = existingNote ? `${existingNote} | ${abonoNote}` : abonoNote
 
       if (newDebtVal === 0) {
@@ -363,10 +363,10 @@ export async function POST(req: NextRequest) {
 
         let abonoText = ""
         if (isAbono && parseFloat(montoAbono) > 0) {
-          const currentDebt = isManual ? parseCurrencyValue(manualRow[3]) : parseCurrencyValue(loanInfo.totalPagar)
+          const currentDebt = parseCurrencyValue(loanInfo.totalPagar)
           const parsedAbono = parseFloat(montoAbono)
           const newDebtVal = Math.max(0, currentDebt - parsedAbono)
-          const originalString = isManual ? (manualRow[3] || "") : (loanInfo.totalPagar || "")
+          const originalString = loanInfo.totalPagar || ""
           const hasDollar = originalString.toString().includes("$")
           const hasEuro = originalString.toString().includes("€")
           const symbol = hasDollar ? "$" : (hasEuro ? "€" : "Bs.")
