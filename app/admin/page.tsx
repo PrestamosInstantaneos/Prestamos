@@ -356,8 +356,8 @@ export default function AdminDashboard() {
         monto: ml.montoSolicitado.toString().includes("Bs") || ml.montoSolicitado.toString().includes("$") ? ml.montoSolicitado : `Bs. ${parseFloat(ml.montoSolicitado).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
         totalPagar: ml.deuda.toString().includes("Bs") || ml.deuda.toString().includes("$") ? ml.deuda : `Bs. ${parseFloat(ml.deuda).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
         estado: ml.estado,
-        referencia: "N/A",
-        comprobanteLink: "",
+        referencia: ml.referencia || "N/A",
+        comprobanteLink: ml.comprobanteLink || "",
         mora: ml.mora || "N/A",
         comentario: ml.mora && ml.mora !== "N/A" ? `Mora: ${ml.mora}` : "N/A"
       }))
@@ -715,8 +715,8 @@ export default function AdminDashboard() {
         monto: ml.montoSolicitado.toString().includes("Bs") || ml.montoSolicitado.toString().includes("$") ? ml.montoSolicitado : `Bs. ${cleanNumFormat(ml.montoSolicitado)}`,
         totalPagar: ml.deuda.toString().includes("Bs") || ml.deuda.toString().includes("$") ? ml.deuda : `Bs. ${cleanNumFormat(ml.deuda)}`,
         estado: ml.estado,
-        referencia: "N/A",
-        comprobanteLink: "",
+        referencia: ml.referencia || "N/A",
+        comprobanteLink: ml.comprobanteLink || "",
         source: "WhatsApp / Manual",
         isManual: true,
         rowIndex: ml.rowIndex

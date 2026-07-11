@@ -105,6 +105,8 @@ export async function GET(req: NextRequest) {
           modalidad: row[5] || "",
           fechaPago: row[6] || "",
           mora: row[7] || "N/A",
+          referencia: row[8] || "",
+          comprobanteLink: row[9] || "",
           rowIndex: idx + 2 // 1-based, skipping header row
         }
       })

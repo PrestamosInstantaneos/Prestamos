@@ -20,91 +20,81 @@ export async function POST(req: NextRequest) {
     }
 
     const { timestamp, cedula, estado, referencia, comprobanteBase64, isManual, rowIndex } = await req.json()
+    if (!estado) {
+      return NextResponse.json({ message: "Falta el campo obligatorio (estado)." }, { status: 400 })
+    }
+
+    const { sheets, sheetId } = getSheetsClient()
+
+    let clientFolderName = ""
+    let driveLink = ""
+    let targetRef = referencia || ""
+    let rowIndexToUpdate = -1
+    let loanInfo: any = null
+
     if (isManual) {
       if (!rowIndex) {
         return NextResponse.json({ message: "Falta el campo rowIndex para actualizar el préstamo manual." }, { status: 400 })
       }
-      const { sheets, sheetId } = getSheetsClient()
-      const capitalizedEstado = estado.charAt(0).toUpperCase() + estado.slice(1).toLowerCase()
-
-      await sheets.spreadsheets.values.update({
+      
+      const manualRes = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: `'Carga manual'!B${rowIndex}`,
-        valueInputOption: "USER_ENTERED",
-        requestBody: {
-          values: [[capitalizedEstado]],
-        },
+        range: `'Carga manual'!A${rowIndex}:J${rowIndex}`,
+      })
+      const manualRow = manualRes.data.values?.[0] || []
+      const solicitante = manualRow[0] || "Cliente WhatsApp"
+      
+      clientFolderName = solicitante.trim()
+      targetRef = referencia || manualRow[8] || ""
+      driveLink = manualRow[9] || ""
+    } else {
+      if (!timestamp || !cedula) {
+        return NextResponse.json({ message: "Faltan campos obligatorios para préstamo web (timestamp, cedula)." }, { status: 400 })
+      }
+
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: "'Solicitudes'!A:N",
       })
 
-      if (capitalizedEstado.toLowerCase() === "pagado") {
-        const todayParts = new Date().toLocaleDateString("es-VE").split("/")
-        const todayStr = `${todayParts[0]}/${todayParts[1]}/${todayParts[2]}`
-        await sheets.spreadsheets.values.update({
-          spreadsheetId: sheetId,
-          range: `'Carga manual'!G${rowIndex}`,
-          valueInputOption: "USER_ENTERED",
-          requestBody: {
-            values: [[todayStr]],
-          },
-        })
-      }
+      const rows = response.data.values || []
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]
+        if (!row || row.length < 2) continue
 
-      return NextResponse.json({ success: true, message: "Préstamo manual actualizado correctamente." })
-    }
+        const rowTimestamp = row[0] ? row[0].toString().trim() : ""
+        const rowCedula = row[1] ? row[1].toString().trim().replace(/\D/g, "") : ""
+        const cleanTargetCedula = cedula.toString().trim().replace(/\D/g, "")
 
-    if (!timestamp || !cedula || !estado) {
-      return NextResponse.json({ message: "Faltan campos obligatorios (timestamp, cedula, estado)." }, { status: 400 })
-    }
-
-    // 2. Obtener cliente de Sheets
-    const { sheets, sheetId } = getSheetsClient()
-
-    // 3. Buscar la fila exacta del préstamo en range A:N
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: "'Solicitudes'!A:N",
-    })
-
-    const rows = response.data.values || []
-    let rowIndexToUpdate = -1
-    let loanInfo = null
-
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i]
-      if (!row || row.length < 2) continue
-
-      const rowTimestamp = row[0] ? row[0].toString().trim() : ""
-      const rowCedula = row[1] ? row[1].toString().trim().replace(/\D/g, "") : ""
-      const cleanTargetCedula = cedula.toString().trim().replace(/\D/g, "")
-
-      if (rowTimestamp === timestamp.toString().trim() && rowCedula === cleanTargetCedula) {
-        rowIndexToUpdate = i + 1 // Google Sheets es 1-indexed
-        loanInfo = {
-          timestamp: row[0] || "",
-          cedula: row[1] || "",
-          nombres: row[2] || "",
-          apellidos: row[3] || "",
-          telefono: row[4] || "",
-          modalidad: row[5] || "",
-          monto: row[6] || "",
-          fechas: row[8] || "",
-          totalPagar: row[9] || "",
-          referenciaExistente: row[12] || "",
-          comprobanteExistente: row[13] || "",
+        if (rowTimestamp === timestamp.toString().trim() && rowCedula === cleanTargetCedula) {
+          rowIndexToUpdate = i + 1
+          loanInfo = {
+            timestamp: row[0] || "",
+            cedula: row[1] || "",
+            nombres: row[2] || "",
+            apellidos: row[3] || "",
+            telefono: row[4] || "",
+            modalidad: row[5] || "",
+            monto: row[6] || "",
+            fechas: row[8] || "",
+            totalPagar: row[9] || "",
+            referenciaExistente: row[12] || "",
+            comprobanteExistente: row[13] || "",
+          }
+          break
         }
-        break
       }
+
+      if (rowIndexToUpdate === -1 || !loanInfo) {
+        return NextResponse.json({ message: "No se encontró ningún préstamo coincidente." }, { status: 404 })
+      }
+
+      clientFolderName = `${loanInfo.nombres} ${loanInfo.apellidos}`.trim()
+      targetRef = referencia || loanInfo.referenciaExistente || ""
+      driveLink = loanInfo.comprobanteExistente || ""
     }
 
-    if (rowIndexToUpdate === -1 || !loanInfo) {
-      return NextResponse.json({ message: "No se encontró ningún préstamo coincidente." }, { status: 404 })
-    }
-
-    let driveLink = loanInfo.comprobanteExistente
-    let targetRef = referencia || loanInfo.referenciaExistente
-
-    // 4. Si se carga un comprobante de pago en Base64, subir a Google Drive con estructura organizada
-    if (estado === "Pagado" && comprobanteBase64 && targetRef) {
+    if (estado.toLowerCase() === "pagado" && comprobanteBase64 && targetRef) {
       try {
         const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID
         const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET
@@ -115,12 +105,11 @@ export async function POST(req: NextRequest) {
         oauth2Client.setCredentials({ refresh_token: refreshToken })
         const drive = google.drive({ version: "v3", auth: oauth2Client })
 
-        // 4.1. Buscar o crear carpeta del cliente con su nombre completo
-        const clientFolderName = `${loanInfo.nombres} ${loanInfo.apellidos}`.trim()
+        const folderSearchName = clientFolderName || "Cliente WhatsApp"
         let clientFolderId = ""
 
         const searchClientFolder = await drive.files.list({
-          q: `mimeType = 'application/vnd.google-apps.folder' and name = '${clientFolderName.replace(/'/g, "\\'")}' and '${parentFolderId}' in parents and trashed = false`,
+          q: `mimeType = 'application/vnd.google-apps.folder' and name = '${folderSearchName.replace(/'/g, "\\'")}' and '${parentFolderId}' in parents and trashed = false`,
           fields: "files(id)",
           supportsAllDrives: true,
           includeItemsFromAllDrives: true,
@@ -130,10 +119,9 @@ export async function POST(req: NextRequest) {
         if (clientFolders.length > 0 && clientFolders[0].id) {
           clientFolderId = clientFolders[0].id
         } else {
-          // Crear carpeta de cliente
           const newFolder = await drive.files.create({
             requestBody: {
-              name: clientFolderName,
+              name: folderSearchName,
               mimeType: "application/vnd.google-apps.folder",
               parents: parentFolderId ? [parentFolderId] : undefined,
             },
@@ -146,9 +134,7 @@ export async function POST(req: NextRequest) {
           throw new Error("No se pudo resolver la carpeta del cliente en Google Drive.")
         }
 
-        // 4.2. Buscar o crear subcarpeta de fecha (DD-MM-YYYY)
         const now = new Date()
-        // Ajuste horario de Venezuela (UTC-4)
         const venTime = new Date(now.getTime() + (now.getTimezoneOffset() - 240) * 60000)
         const day = String(venTime.getDate()).padStart(2, "0")
         const month = String(venTime.getMonth() + 1).padStart(2, "0")
@@ -167,7 +153,6 @@ export async function POST(req: NextRequest) {
         if (dateFolders.length > 0 && dateFolders[0].id) {
           dateFolderId = dateFolders[0].id
         } else {
-          // Crear carpeta de fecha
           const newDateFolder = await drive.files.create({
             requestBody: {
               name: dateFolderName,
@@ -183,7 +168,6 @@ export async function POST(req: NextRequest) {
           throw new Error("No se pudo resolver la carpeta de la fecha en Google Drive.")
         }
 
-        // 4.3. Procesar imagen Base64 y subir con el nombre <referencia>.png
         const matches = comprobanteBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/)
         const mimeType = matches ? matches[1] : "image/png"
         const base64Data = matches ? matches[2] : comprobanteBase64
@@ -223,15 +207,49 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Actualizar la fila en Sheets (columnas L, M, N: Estado, Referencia, Enlace)
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: sheetId,
-      range: `'Solicitudes'!L${rowIndexToUpdate}:N${rowIndexToUpdate}`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[estado, targetRef || "", driveLink || ""]],
-      },
-    })
+    if (isManual) {
+      const capitalizedEstado = estado.charAt(0).toUpperCase() + estado.slice(1).toLowerCase()
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `'Carga manual'!B${rowIndex}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [[capitalizedEstado]],
+        },
+      })
+
+      if (capitalizedEstado.toLowerCase() === "pagado") {
+        const todayParts = new Date().toLocaleDateString("es-VE").split("/")
+        const todayStr = `${todayParts[0]}/${todayParts[1]}/${todayParts[2]}`
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: sheetId,
+          range: `'Carga manual'!G${rowIndex}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[todayStr]],
+          },
+        })
+      }
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `'Carga manual'!I${rowIndex}:J${rowIndex}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [[targetRef || "", driveLink || ""]],
+        },
+      })
+    } else {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `'Solicitudes'!L${rowIndexToUpdate}:N${rowIndexToUpdate}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [[estado, targetRef || "", driveLink || ""]],
+        },
+      })
+    }
 
     // 6. Enviar notificación por Telegram si está configurado
     const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN
