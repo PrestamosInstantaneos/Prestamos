@@ -1058,6 +1058,41 @@ export default function AdminDashboard() {
     }
   }
 
+  // Handle deleting a loan/request
+  const handleDeleteLoan = async (loan: any) => {
+    const isManual = loan.source === "Carga manual"
+    const displayName = isManual ? loan.solicitante : `${loan.nombres} ${loan.apellidos}`
+    const confirmMessage = `¿Estás seguro de que deseas eliminar permanentemente el préstamo de "${displayName}" por un monto de "${loan.monto}"?\n\nEsta acción eliminará la fila de la hoja de cálculo de Google Sheets y no se puede deshacer.`
+    
+    if (!confirm(confirmMessage)) return
+
+    setUpdatingLoanId(`${loan.timestamp}-${loan.cedula}`)
+    try {
+      const res = await fetch("/api/admin/delete-loan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isManual,
+          rowIndex: loan.rowIndex,
+          timestamp: loan.timestamp,
+          cedula: loan.cedula
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.message || "Error al eliminar el préstamo.")
+      }
+
+      alert(data.message || "Préstamo eliminado con éxito.")
+      mutate() // Refresh data
+    } catch (err: any) {
+      alert(err.message || "Error de red al eliminar el préstamo.")
+    } finally {
+      setUpdatingLoanId(null)
+    }
+  }
+
   // Handle registering WhatsApp client manually
   const handleRegisterWhatsAppClient = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -2541,10 +2576,19 @@ export default function AdminDashboard() {
 
                                   <button
                                     onClick={() => openEditLoanModal(l)}
-                                    className="bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-2 py-1 rounded text-[10px] font-semibold transition-all uppercase"
+                                    disabled={isUpdating}
+                                    className="bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-2 py-1 rounded text-[10px] font-semibold transition-all uppercase disabled:opacity-50"
                                     title="Editar detalles del préstamo"
                                   >
                                     Editar
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteLoan(l)}
+                                    disabled={isUpdating}
+                                    className="bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-2 py-1 rounded text-[10px] font-semibold transition-all uppercase disabled:opacity-50"
+                                    title="Eliminar este préstamo permanentemente"
+                                  >
+                                    Eliminar
                                   </button>
                                 </div>
                               )}
