@@ -19,7 +19,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "No autorizado. Acceso denegado." }, { status: 403 })
     }
 
-    const { timestamp, cedula, estado, referencia, comprobanteBase64 } = await req.json()
+    const { timestamp, cedula, estado, referencia, comprobanteBase64, isManual, rowIndex } = await req.json()
+    if (isManual) {
+      if (!rowIndex) {
+        return NextResponse.json({ message: "Falta el campo rowIndex para actualizar el préstamo manual." }, { status: 400 })
+      }
+      const { sheets, sheetId } = getSheetsClient()
+      const capitalizedEstado = estado.charAt(0).toUpperCase() + estado.slice(1).toLowerCase()
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `'Carga manual'!B${rowIndex}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [[capitalizedEstado]],
+        },
+      })
+
+      if (capitalizedEstado.toLowerCase() === "pagado") {
+        const todayParts = new Date().toLocaleDateString("es-VE").split("/")
+        const todayStr = `${todayParts[0]}/${todayParts[1]}/${todayParts[2]}`
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: sheetId,
+          range: `'Carga manual'!G${rowIndex}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[todayStr]],
+          },
+        })
+      }
+
+      return NextResponse.json({ success: true, message: "Préstamo manual actualizado correctamente." })
+    }
+
     if (!timestamp || !cedula || !estado) {
       return NextResponse.json({ message: "Faltan campos obligatorios (timestamp, cedula, estado)." }, { status: 400 })
     }

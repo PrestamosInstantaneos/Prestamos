@@ -321,7 +321,8 @@ export default function AdminDashboard() {
       })
       .map((l: any) => ({
         source: "Web",
-        fecha: l.timestamp,
+        fechaSolicitud: l.timestamp.includes(",") ? l.timestamp.split(",")[0] : l.timestamp,
+        fechaPago: l.estado.toLowerCase() === "pagado" ? (l.fechas || l.timestamp.split(",")[0]) : "-",
         modalidad: l.modalidad || "CONTADO",
         monto: l.monto.toString().includes("Bs") || l.monto.toString().includes("$") ? l.monto : `Bs. ${parseFloat(l.monto).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
         totalPagar: l.totalPagar.toString().includes("Bs") || l.totalPagar.toString().includes("$") ? l.totalPagar : `Bs. ${parseFloat(l.totalPagar).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
@@ -348,7 +349,8 @@ export default function AdminDashboard() {
       })
       .map((ml: any) => ({
         source: "WhatsApp / Manual",
-        fecha: ml.fechaSolicitud || ml.fechaPago || "N/A",
+        fechaSolicitud: ml.fechaSolicitud || "-",
+        fechaPago: ml.fechaPago || "-",
         modalidad: ml.modalidad || "CONTADO",
         monto: ml.montoSolicitado.toString().includes("Bs") || ml.montoSolicitado.toString().includes("$") ? ml.montoSolicitado : `Bs. ${parseFloat(ml.montoSolicitado).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
         totalPagar: ml.deuda.toString().includes("Bs") || ml.deuda.toString().includes("$") ? ml.deuda : `Bs. ${parseFloat(ml.deuda).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
@@ -361,10 +363,10 @@ export default function AdminDashboard() {
 
     const combined = [...web, ...manual]
     
-    // Ordenar cronológicamente descendente
+    // Ordenar por fecha de pago (si está pagado) o fecha de solicitud descendente
     combined.sort((a, b) => {
       const parseDate = (dStr: string) => {
-        if (!dStr || dStr === "N/A") return 0
+        if (!dStr || dStr === "-" || dStr === "N/A") return 0
         const clean = dStr.replace(/[^\d/:-]/g, "").trim()
         if (clean.includes("/") && clean.split("/").length >= 3) {
           const pts = clean.split("/")
@@ -375,7 +377,10 @@ export default function AdminDashboard() {
         const parsed = Date.parse(clean)
         return isNaN(parsed) ? 0 : parsed
       }
-      return parseDate(b.fecha) - parseDate(a.fecha)
+      
+      const dateA = a.fechaPago !== "-" ? a.fechaPago : a.fechaSolicitud
+      const dateB = b.fechaPago !== "-" ? b.fechaPago : b.fechaSolicitud
+      return parseDate(dateB) - parseDate(dateA)
     })
 
     return combined
@@ -649,8 +654,98 @@ export default function AdminDashboard() {
     })
   }, [users, userSearch, userFilter])
 
+  // Helper simple para formatear números de Bs en texto legible
+  const cleanNumFormat = (str: any) => {
+    if (!str) return "0"
+    const parsed = parseFloat(str.toString().replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0
+    return parsed.toLocaleString("es-VE", { minimumFractionDigits: 0 })
+  }
+
+  // Combinación y unificación de todos los créditos de la plataforma (Web + WhatsApp/Manual)
+  const allLoansUnified = useMemo(() => {
+    const web = loans.map((l: any) => ({
+      ...l,
+      source: "Web",
+      isManual: false,
+      monto: l.monto.toString().includes("Bs") || l.monto.toString().includes("$") ? l.monto : `Bs. ${parseFloat(l.monto).toLocaleString("es-VE", { minimumFractionDigits: 0 })}`,
+      totalPagar: l.totalPagar.toString().includes("Bs") || l.totalPagar.toString().includes("$") ? l.totalPagar : `Bs. ${parseFloat(l.totalPagar).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
+    }))
+
+    const manual = manualLoans.map((ml: any) => {
+      const key = ml.solicitante.trim()
+      let nombres = key
+      let apellidos = ""
+      let cedula = "N/A"
+      let telefono = "N/A"
+      
+      const normalizedKey = key.toLowerCase().replace(/\s/g, "")
+      const isNumericKey = /^\d+$/.test(normalizedKey) || (normalizedKey.length >= 6 && /\d{6,}/.test(normalizedKey))
+      
+      let matchedUser = null
+      if (isNumericKey) {
+        const numbersOnly = normalizedKey.replace(/\D/g, "")
+        matchedUser = users.find((u: any) => u.cedula.replace(/\D/g, "").includes(numbersOnly))
+      } else {
+        matchedUser = users.find((u: any) => {
+          const userNameClean = `${u.nombres} ${u.apellidos}`.toLowerCase().replace(/\s/g, "")
+          return userNameClean.includes(normalizedKey) || normalizedKey.includes(userNameClean)
+        })
+      }
+
+      if (matchedUser) {
+        nombres = matchedUser.nombres
+        apellidos = matchedUser.apellidos
+        cedula = matchedUser.cedula
+        telefono = matchedUser.telefono
+      } else {
+        if (isNumericKey) {
+          cedula = key
+          nombres = "Cliente WhatsApp"
+        }
+      }
+
+      return {
+        timestamp: ml.fechaSolicitud || ml.fechaPago || "N/A",
+        nombres,
+        apellidos,
+        cedula,
+        telefono,
+        modalidad: ml.modalidad || "CONTADO",
+        monto: ml.montoSolicitado.toString().includes("Bs") || ml.montoSolicitado.toString().includes("$") ? ml.montoSolicitado : `Bs. ${cleanNumFormat(ml.montoSolicitado)}`,
+        totalPagar: ml.deuda.toString().includes("Bs") || ml.deuda.toString().includes("$") ? ml.deuda : `Bs. ${cleanNumFormat(ml.deuda)}`,
+        estado: ml.estado,
+        referencia: "N/A",
+        comprobanteLink: "",
+        source: "WhatsApp / Manual",
+        isManual: true,
+        rowIndex: ml.rowIndex
+      }
+    })
+
+    const combined = [...web, ...manual]
+
+    // Ordenar por fecha descendente
+    combined.sort((a, b) => {
+      const parseDate = (dStr: string) => {
+        if (!dStr || dStr === "N/A") return 0
+        const clean = dStr.replace(/[^\d/:-]/g, "").trim()
+        if (clean.includes("/") && clean.split("/").length >= 3) {
+          const pts = clean.split("/")
+          let year = parseInt(pts[2].split(" ")[0])
+          if (year < 100) year += 2000
+          return new Date(year, parseInt(pts[1]) - 1, parseInt(pts[0])).getTime()
+        }
+        const parsed = Date.parse(clean)
+        return isNaN(parsed) ? 0 : parsed
+      }
+      return parseDate(b.timestamp) - parseDate(a.timestamp)
+    })
+
+    return combined
+  }, [loans, manualLoans, users])
+
   const filteredLoans = useMemo(() => {
-    return loans.filter((l: any) => {
+    return allLoansUnified.filter((l: any) => {
       const search = loanSearch.toLowerCase().trim()
       const matchesSearch =
         search === "" ||
@@ -664,7 +759,7 @@ export default function AdminDashboard() {
 
       return matchesSearch && matchesFilter
     })
-  }, [loans, loanSearch, loanFilter])
+  }, [allLoansUnified, loanSearch, loanFilter])
 
   // Statistics computations
   const stats = useMemo(() => {
@@ -673,7 +768,7 @@ export default function AdminDashboard() {
     const whatsappUsersCount = users.filter((u: any) => u.verificado === "WHATSAPP").length
     const unverifiedUsersCount = totalUsersCount - verifiedUsersCount - whatsappUsersCount
 
-    const totalLoansCount = loans.length
+    const totalLoansCount = loans.length + manualLoans.length
     const pendingLoans = loans.filter((l: any) => l.estado.toLowerCase() === "pendiente")
     const approvedLoans = loans.filter((l: any) =>
       l.estado.toLowerCase() === "aprobado" ||
@@ -703,6 +798,7 @@ export default function AdminDashboard() {
     // Grouping by Month for growth chart
     const monthlyEarningsMap: { [key: string]: number } = {}
 
+    // Process web loans
     loans.forEach((l: any) => {
       const base = parseAmount(l.monto)
       const pay = parseAmount(l.totalPagar)
@@ -759,6 +855,50 @@ export default function AdminDashboard() {
       }
     })
 
+    // Process manualLoans
+    manualLoans.forEach((ml: any) => {
+      const base = parseAmount(ml.montoSolicitado)
+      const pay = parseAmount(ml.deuda)
+      const state = (ml.estado || "").toLowerCase()
+
+      totalRequestedBs += base
+      manualRequestedBs += base
+
+      const isApprovedOrPaid = state === "aprobado" || state === "por pagar" || state === "pendiente por pagar" || state === "pagado" || state === "pagando"
+
+      if (isApprovedOrPaid) {
+        totalApprovedBs += base
+        manualApprovedBs += base
+
+        const interest = Math.max(0, pay - base)
+        totalInterestBs += interest
+        manualInterestBs += interest
+
+        // Grouping by month
+        let dateObj = new Date()
+        const dateStr = ml.fechaPago || ml.fechaSolicitud
+        if (dateStr) {
+          const clean = dateStr.replace(/[^\d/:-]/g, "").trim()
+          if (clean.includes("/") && clean.split("/").length >= 3) {
+            const pts = clean.split("/")
+            let yr = parseInt(pts[2].split(" ")[0])
+            if (yr < 100) yr += 2000
+            dateObj = new Date(yr, parseInt(pts[1]) - 1, parseInt(pts[0]))
+          } else {
+            const parsed = Date.parse(clean)
+            if (!isNaN(parsed)) dateObj = new Date(parsed)
+          }
+        }
+        const monthLabel = dateObj.toLocaleString("es-VE", { month: "short", year: "2-digit" })
+        monthlyEarningsMap[monthLabel] = (monthlyEarningsMap[monthLabel] || 0) + (interest / bcvRate)
+      }
+
+      if (state === "pagado") {
+        totalPaidBs += base
+        manualPaidBs += base
+      }
+    })
+
     // Sort months chronologically
     const sortedMonths = Object.keys(monthlyEarningsMap).sort((a, b) => {
       const parseMonthStr = (s: string) => {
@@ -807,7 +947,7 @@ export default function AdminDashboard() {
       // Monthly earnings
       monthlyEarnings,
     }
-  }, [users, loans, bcvRate])
+  }, [users, loans, manualLoans, bcvRate])
 
   // Handle loan status updates
   const handleUpdateLoanStatus = async (loan: any, newStatus: string) => {
@@ -823,6 +963,8 @@ export default function AdminDashboard() {
           timestamp: loan.timestamp,
           cedula: loan.cedula,
           estado: newStatus,
+          isManual: loan.isManual || false,
+          rowIndex: loan.rowIndex || undefined
         }),
       })
 
@@ -996,6 +1138,8 @@ export default function AdminDashboard() {
           estado: "Pagado",
           referencia: paymentReferencia,
           comprobanteBase64: paymentComprobanteBase64,
+          isManual: selectedPaymentLoan.isManual || false,
+          rowIndex: selectedPaymentLoan.rowIndex || undefined
         }),
       })
 
@@ -2573,7 +2717,8 @@ export default function AdminDashboard() {
                   <thead>
                     <tr className="bg-zinc-950 border-b border-border text-muted-foreground font-semibold">
                       <th className="px-4 py-2.5">Canal</th>
-                      <th className="px-4 py-2.5">Fecha</th>
+                      <th className="px-4 py-2.5">F. Solicitud</th>
+                      <th className="px-4 py-2.5">F. Pago</th>
                       <th className="px-4 py-2.5">Modalidad</th>
                       <th className="px-4 py-2.5 text-right">Monto</th>
                       <th className="px-4 py-2.5 text-right">Total a Pagar</th>
@@ -2584,7 +2729,7 @@ export default function AdminDashboard() {
                   <tbody>
                     {combinedUserLoans.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
+                        <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
                           El cliente no registra solicitudes ni préstamos en el historial aún.
                         </td>
                       </tr>
@@ -2602,7 +2747,8 @@ export default function AdminDashboard() {
                                 {l.source}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-muted-foreground font-mono">{l.fecha}</td>
+                            <td className="px-4 py-3 text-muted-foreground font-mono">{l.fechaSolicitud}</td>
+                            <td className="px-4 py-3 text-muted-foreground font-mono">{l.fechaPago}</td>
                             <td className="px-4 py-3 font-medium">{l.modalidad}</td>
                             <td className="px-4 py-3 text-right font-mono font-semibold">{l.monto}</td>
                             <td className="px-4 py-3 text-right text-primary font-mono font-semibold">{l.totalPagar}</td>
