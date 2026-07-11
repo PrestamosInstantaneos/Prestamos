@@ -28,11 +28,11 @@ export async function GET(req: NextRequest) {
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: "'Solicitudes'!A:N", // Solicitudes de préstamos
+        range: "'Solicitudes'!A:P", // Solicitudes de préstamos
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: "'Carga manual'!A:H", // Carga manual / WhatsApp
+        range: "'Carga manual'!A:L", // Carga manual / WhatsApp
       })
     ])
 
