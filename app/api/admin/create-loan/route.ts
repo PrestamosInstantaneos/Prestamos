@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       totalPagar,
       bcvRate,
       estado,
+      moneda,
     } = await req.json()
 
     if (!cedula || !nombres || !apellidos || !telefono || !modalidad || !monto || !totalPagar) {
@@ -41,11 +42,12 @@ export async function POST(req: NextRequest) {
     // 3. Agregar el registro de préstamo manual
     const timestamp = new Date().toLocaleString("es-VE", { timeZone: "America/Caracas" })
     
-    const formattedMonto = typeof monto === "number" ? `Bs. ${monto.toLocaleString("es-VE")}` : monto
-    const formattedTotalPagar = typeof totalPagar === "number" ? `Bs. ${totalPagar.toLocaleString("es-VE")}` : totalPagar
+    const cur = moneda || "Bs."
+    const formattedMonto = typeof monto === "number" ? `${cur} ${monto.toLocaleString("es-VE")}` : monto
+    const formattedTotalPagar = typeof totalPagar === "number" ? `${cur} ${totalPagar.toLocaleString("es-VE")}` : totalPagar
     const formattedBcvRate = typeof bcvRate === "number" ? `Bs. ${bcvRate.toLocaleString("es-VE")}` : bcvRate
     const formattedMontoCuota = montoCuota 
-      ? (typeof montoCuota === "number" ? `Bs. ${montoCuota.toLocaleString("es-VE")}` : montoCuota) 
+      ? (typeof montoCuota === "number" ? `${cur} ${montoCuota.toLocaleString("es-VE")}` : montoCuota) 
       : (modalidad === "Cuotas" ? "A calcular" : "N/A")
 
     const finalEstado = estado || "Aprobado"

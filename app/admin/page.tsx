@@ -123,6 +123,7 @@ export default function AdminDashboard() {
   const [isManualLoanModalOpen, setIsManualLoanModalOpen] = useState(false)
   const [manualClientSelected, setManualClientSelected] = useState("") // selected client's telefono
   const [manualMonto, setManualMonto] = useState("")
+  const [manualMoneda, setManualMoneda] = useState("Bs.")
   const [manualModalidad, setManualModalidad] = useState("Pago Total")
   const [manualInteres, setManualInteres] = useState("54") // Default 54% interest
   const [manualFechas, setManualFechas] = useState("")
@@ -188,6 +189,8 @@ export default function AdminDashboard() {
   const [paymentReferencia, setPaymentReferencia] = useState("")
   const [paymentComprobanteBase64, setPaymentComprobanteBase64] = useState("")
   const [skipComprobante, setSkipComprobante] = useState(false)
+  const [paymentMoneda, setPaymentMoneda] = useState("Bs.")
+  const [paymentNota, setPaymentNota] = useState("")
   const [paymentOcrScanning, setPaymentOcrScanning] = useState(false)
   const [paymentSubmitting, setPaymentSubmitting] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
@@ -331,7 +334,9 @@ export default function AdminDashboard() {
         referencia: l.referencia || "N/A",
         comprobanteLink: l.comprobanteLink || "",
         mora: "N/A",
-        comentario: l.referencia ? `Ref: ${l.referencia}` : "N/A"
+        comentario: l.referencia ? `Ref: ${l.referencia}` : "N/A",
+        notaPago: l.notaPago || "",
+        monedaPago: l.monedaPago || ""
       }))
 
     // Filtrar créditos de carga manual
@@ -359,7 +364,9 @@ export default function AdminDashboard() {
         referencia: ml.referencia || "N/A",
         comprobanteLink: ml.comprobanteLink || "",
         mora: ml.mora || "N/A",
-        comentario: ml.mora && ml.mora !== "N/A" ? `Mora: ${ml.mora}` : "N/A"
+        comentario: ml.mora && ml.mora !== "N/A" ? `Mora: ${ml.mora}` : "N/A",
+        notaPago: ml.notaPago || "",
+        monedaPago: ml.monedaPago || ""
       }))
 
     const combined = [...web, ...manual]
@@ -670,6 +677,8 @@ export default function AdminDashboard() {
       isManual: false,
       monto: l.monto.toString().includes("Bs") || l.monto.toString().includes("$") ? l.monto : `Bs. ${parseFloat(l.monto).toLocaleString("es-VE", { minimumFractionDigits: 0 })}`,
       totalPagar: l.totalPagar.toString().includes("Bs") || l.totalPagar.toString().includes("$") ? l.totalPagar : `Bs. ${parseFloat(l.totalPagar).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
+      notaPago: l.notaPago || "",
+      monedaPago: l.monedaPago || ""
     }))
 
     const manual = manualLoans.map((ml: any) => {
@@ -719,7 +728,9 @@ export default function AdminDashboard() {
         comprobanteLink: ml.comprobanteLink || "",
         source: "WhatsApp / Manual",
         isManual: true,
-        rowIndex: ml.rowIndex
+        rowIndex: ml.rowIndex,
+        notaPago: ml.notaPago || "",
+        monedaPago: ml.monedaPago || ""
       }
     })
 
@@ -1112,6 +1123,18 @@ export default function AdminDashboard() {
     }
   }
 
+  const closePaymentModal = () => {
+    setIsPaymentModalOpen(false)
+    setSelectedPaymentLoan(null)
+    setPaymentReferencia("")
+    setPaymentComprobanteBase64("")
+    setSkipComprobante(false)
+    setPaymentMoneda("Bs.")
+    setPaymentNota("")
+    setPaymentError(null)
+    setPaymentSuccess(null)
+  }
+
   // Submit payment confirmation
   const handleSubmitPaymentVerification = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -1142,7 +1165,9 @@ export default function AdminDashboard() {
           referencia: skipComprobante ? "Manual - Sin comprobante" : paymentReferencia,
           comprobanteBase64: skipComprobante ? undefined : paymentComprobanteBase64,
           isManual: selectedPaymentLoan.isManual || false,
-          rowIndex: selectedPaymentLoan.rowIndex || undefined
+          rowIndex: selectedPaymentLoan.rowIndex || undefined,
+          monedaPago: paymentMoneda,
+          notaPago: paymentNota
         }),
       })
 
@@ -1155,9 +1180,7 @@ export default function AdminDashboard() {
       mutate()
 
       setTimeout(() => {
-        setIsPaymentModalOpen(false)
-        setSelectedPaymentLoan(null)
-        setPaymentSuccess(null)
+        closePaymentModal()
       }, 1500)
     } catch (err: any) {
       setPaymentError(err.message || "Error al procesar la confirmación del pago")
@@ -1270,6 +1293,7 @@ export default function AdminDashboard() {
         totalPagar: computedManualTotal,
         bcvRate: parseFloat(manualMonto) ? bcvRate : 0,
         estado: manualEstado,
+        moneda: manualMoneda,
       }
 
       const res = await fetch("/api/admin/create-loan", {
@@ -2755,11 +2779,14 @@ export default function AdminDashboard() {
                             <td className="px-4 py-3 font-medium">{l.modalidad}</td>
                             <td className="px-4 py-3 text-right font-mono font-semibold">{l.monto}</td>
                             <td className="px-4 py-3 text-right text-primary font-mono font-semibold">{l.totalPagar}</td>
-                            <td className="px-4 py-3 text-muted-foreground font-mono text-[10px]">
+                            <td className="px-4 py-3 text-muted-foreground font-mono text-[10px] leading-tight">
                               {l.mora !== "N/A" ? (
                                 <span className="text-red-400 font-semibold">Mora: {l.mora}</span>
                               ) : l.referencia !== "N/A" ? (
-                                <span>Ref: {l.referencia}</span>
+                                <div>
+                                  <p>Ref: <span className="font-semibold text-foreground">{l.referencia}</span> {l.monedaPago && `(${l.monedaPago})`}</p>
+                                  {l.notaPago && <p className="text-[9px] italic text-muted-foreground mt-0.5 max-w-[140px] truncate" title={l.notaPago}>Nota: {l.notaPago}</p>}
+                                </div>
                               ) : (
                                 <span>-</span>
                               )}
@@ -2853,10 +2880,23 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Monto & Modalidad Row */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Moneda, Monto & Modalidad Row */}
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-muted-foreground font-semibold">Monto del Préstamo (Bs.):</label>
+                  <label className="text-muted-foreground font-semibold">Moneda:</label>
+                  <select
+                    value={manualMoneda}
+                    onChange={(e) => setManualMoneda(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                  >
+                    <option value="Bs.">Bolívares (Bs.)</option>
+                    <option value="$">Dólares ($)</option>
+                    <option value="€">Euros (€)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Monto ({manualMoneda}):</label>
                   <input
                     type="number"
                     step="0.01"
@@ -2869,7 +2909,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-muted-foreground font-semibold">Modalidad de Pago:</label>
+                  <label className="text-muted-foreground font-semibold">Modalidad:</label>
                   <select
                     value={manualModalidad}
                     onChange={(e) => setManualModalidad(e.target.value)}
@@ -2946,20 +2986,20 @@ export default function AdminDashboard() {
                 <h4 className="font-bold text-primary text-[10px] uppercase tracking-wider mb-1">Cálculo de Desembolso</h4>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Monto Base:</span>
-                  <span className="font-semibold font-mono">Bs. {manualMonto ? parseFloat(manualMonto).toLocaleString("es-VE", { minimumFractionDigits: 2 }) : "0,00"}</span>
+                  <span className="font-semibold font-mono">{manualMoneda} {manualMonto ? parseFloat(manualMonto).toLocaleString("es-VE", { minimumFractionDigits: 2 }) : "0,00"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Recargo de Intereses ({manualCustomTotal ? "Personalizado" : `${manualInteres}%`}):</span>
-                  <span className="font-semibold font-mono">Bs. {manualMonto ? (computedManualTotal - (parseFloat(manualMonto) || 0)).toLocaleString("es-VE", { minimumFractionDigits: 2 }) : "0,00"}</span>
+                  <span className="font-semibold font-mono">{manualMoneda} {manualMonto ? (computedManualTotal - (parseFloat(manualMonto) || 0)).toLocaleString("es-VE", { minimumFractionDigits: 2 }) : "0,00"}</span>
                 </div>
                 <div className="flex justify-between border-t border-border pt-1.5 text-foreground font-bold">
                   <span>Total a Devolver:</span>
-                  <span className="text-primary font-mono">Bs. {computedManualTotal.toLocaleString("es-VE", { minimumFractionDigits: 2 })}</span>
+                  <span className="text-primary font-mono">{manualMoneda} {computedManualTotal.toLocaleString("es-VE", { minimumFractionDigits: 2 })}</span>
                 </div>
                 {manualModalidad === "Cuotas" && (
                   <div className="flex justify-between text-muted-foreground text-[10px]">
                     <span>Detalle Cuotas (2 Cuotas):</span>
-                    <span className="font-mono">2 cuotas de Bs. {computedManualCuota.toLocaleString("es-VE", { minimumFractionDigits: 2 })}</span>
+                    <span className="font-mono">2 cuotas de {manualMoneda} {computedManualCuota.toLocaleString("es-VE", { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
               </div>
@@ -3156,12 +3196,7 @@ export default function AdminDashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-card border border-border w-full max-w-md p-6 rounded-2xl relative shadow-2xl space-y-4 my-8">
             <button
-              onClick={() => {
-                setIsPaymentModalOpen(false)
-                setSelectedPaymentLoan(null)
-                setPaymentError(null)
-                setPaymentSuccess(null)
-              }}
+              onClick={closePaymentModal}
               className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors p-1.5 hover:bg-secondary rounded-lg"
             >
               <XCircle className="h-5 w-5" />
@@ -3252,6 +3287,33 @@ export default function AdminDashboard() {
                   </div>
                 </>
               )}
+
+              {/* Moneda & Nota de Pago */}
+              <div className="space-y-3 border-t border-border/60 pt-3">
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Moneda del Pago:</label>
+                  <select
+                    value={paymentMoneda}
+                    onChange={(e) => setPaymentMoneda(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                  >
+                    <option value="Bs.">Bolívares (Bs.)</option>
+                    <option value="$">Dólares ($)</option>
+                    <option value="€">Euros (€)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Nota o Comentario del Pago (Opcional):</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ej. Transferencia desde Banco de Venezuela / Pago en efectivo..."
+                    value={paymentNota}
+                    onChange={(e) => setPaymentNota(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg p-2 focus:border-primary focus:outline-none transition-colors resize-none text-[11px]"
+                  />
+                </div>
+              </div>
 
               {paymentError && <p className="text-xs text-destructive font-semibold">✗ {paymentError}</p>}
               {paymentSuccess && <p className="text-xs text-emerald-500 font-semibold">✓ {paymentSuccess}</p>}

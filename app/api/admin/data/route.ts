@@ -81,6 +81,8 @@ export async function GET(req: NextRequest) {
         estado: row[11] || "Pendiente",
         referencia: row[12] || "",
         comprobanteLink: row[13] || "",
+        notaPago: row[14] || "",
+        monedaPago: row[15] || "",
         rowIndex: idx + 2 // 1-based, skipping header row
       }))
 
@@ -107,6 +109,8 @@ export async function GET(req: NextRequest) {
           mora: row[7] || "N/A",
           referencia: row[8] || "",
           comprobanteLink: row[9] || "",
+          notaPago: row[10] || "",
+          monedaPago: row[11] || "",
           rowIndex: idx + 2 // 1-based, skipping header row
         }
       })

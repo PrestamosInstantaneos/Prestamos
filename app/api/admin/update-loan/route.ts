@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "No autorizado. Acceso denegado." }, { status: 403 })
     }
 
-    const { timestamp, cedula, estado, referencia, comprobanteBase64, isManual, rowIndex } = await req.json()
+    const { timestamp, cedula, estado, referencia, comprobanteBase64, isManual, rowIndex, notaPago, monedaPago } = await req.json()
     if (!estado) {
       return NextResponse.json({ message: "Falta el campo obligatorio (estado)." }, { status: 400 })
     }
@@ -234,19 +234,19 @@ export async function POST(req: NextRequest) {
 
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: `'Carga manual'!I${rowIndex}:J${rowIndex}`,
+        range: `'Carga manual'!I${rowIndex}:L${rowIndex}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-          values: [[targetRef || "", driveLink || ""]],
+          values: [[targetRef || "", driveLink || "", notaPago || "", monedaPago || "Bs."]],
         },
       })
     } else {
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: `'Solicitudes'!L${rowIndexToUpdate}:N${rowIndexToUpdate}`,
+        range: `'Solicitudes'!L${rowIndexToUpdate}:P${rowIndexToUpdate}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-          values: [[estado, targetRef || "", driveLink || ""]],
+          values: [[estado, targetRef || "", driveLink || "", notaPago || "", monedaPago || "Bs."]],
         },
       })
     }
