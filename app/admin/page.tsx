@@ -304,6 +304,222 @@ export default function AdminDashboard() {
     setIsWhatsAppModalOpen(true)
   }
 
+  // Memo para calcular el historial consolidado de créditos (Web + Carga Manual) de un cliente específico
+  const combinedUserLoans = useMemo(() => {
+    if (!selectedUser) return []
+    
+    const userCedulaClean = selectedUser.cedula.replace(/\D/g, "")
+    const userPhoneClean = selectedUser.telefono.replace(/\D/g, "")
+    const userNameClean = `${selectedUser.nombres} ${selectedUser.apellidos}`.toLowerCase().replace(/\s/g, "")
+
+    // Filtrar créditos web
+    const web = loans
+      .filter((l: any) => {
+        const lCedula = l.cedula.replace(/\D/g, "")
+        const lPhone = l.telefono.replace(/\D/g, "")
+        return (lCedula && lCedula === userCedulaClean) || (lPhone && lPhone === userPhoneClean)
+      })
+      .map((l: any) => ({
+        source: "Web",
+        fecha: l.timestamp,
+        modalidad: l.modalidad || "CONTADO",
+        monto: l.monto.toString().includes("Bs") || l.monto.toString().includes("$") ? l.monto : `Bs. ${parseFloat(l.monto).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
+        totalPagar: l.totalPagar.toString().includes("Bs") || l.totalPagar.toString().includes("$") ? l.totalPagar : `Bs. ${parseFloat(l.totalPagar).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
+        estado: l.estado,
+        referencia: l.referencia || "N/A",
+        comprobanteLink: l.comprobanteLink || "",
+        mora: "N/A",
+        comentario: l.referencia ? `Ref: ${l.referencia}` : "N/A"
+      }))
+
+    // Filtrar créditos de carga manual
+    const manual = manualLoans
+      .filter((ml: any) => {
+        const solicitanteClean = ml.solicitante.trim().toLowerCase().replace(/\s/g, "")
+        if (!solicitanteClean) return false
+        
+        const isNumeric = /^\d+$/.test(solicitanteClean) || (solicitanteClean.length >= 6 && /\d{6,}/.test(solicitanteClean))
+        if (isNumeric) {
+          const numOnly = solicitanteClean.replace(/\D/g, "")
+          return userCedulaClean.includes(numOnly) || numOnly.includes(userCedulaClean)
+        }
+        
+        return solicitanteClean.includes(userNameClean) || userNameClean.includes(solicitanteClean)
+      })
+      .map((ml: any) => ({
+        source: "WhatsApp / Manual",
+        fecha: ml.fechaSolicitud || ml.fechaPago || "N/A",
+        modalidad: ml.modalidad || "CONTADO",
+        monto: ml.montoSolicitado.toString().includes("Bs") || ml.montoSolicitado.toString().includes("$") ? ml.montoSolicitado : `Bs. ${parseFloat(ml.montoSolicitado).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
+        totalPagar: ml.deuda.toString().includes("Bs") || ml.deuda.toString().includes("$") ? ml.deuda : `Bs. ${parseFloat(ml.deuda).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
+        estado: ml.estado,
+        referencia: "N/A",
+        comprobanteLink: "",
+        mora: ml.mora || "N/A",
+        comentario: ml.mora && ml.mora !== "N/A" ? `Mora: ${ml.mora}` : "N/A"
+      }))
+
+    const combined = [...web, ...manual]
+    
+    // Ordenar cronológicamente descendente
+    combined.sort((a, b) => {
+      const parseDate = (dStr: string) => {
+        if (!dStr || dStr === "N/A") return 0
+        const clean = dStr.replace(/[^\d/:-]/g, "").trim()
+        if (clean.includes("/") && clean.split("/").length >= 3) {
+          const pts = clean.split("/")
+          let year = parseInt(pts[2].split(" ")[0])
+          if (year < 100) year += 2000
+          return new Date(year, parseInt(pts[1]) - 1, parseInt(pts[0])).getTime()
+        }
+        const parsed = Date.parse(clean)
+        return isNaN(parsed) ? 0 : parsed
+      }
+      return parseDate(b.fecha) - parseDate(a.fecha)
+    })
+
+    return combined
+  }, [selectedUser, loans, manualLoans])
+
+  // Memo para agrupar cobros en ciclos de inversión quincenales y graficar/analizar el crecimiento del capital
+  const investmentCycles = useMemo(() => {
+    const paidList: { date: Date; interestUsd: number }[] = []
+
+    const cleanNum = (str: any) => {
+      if (!str) return 0
+      return parseFloat(str.toString().replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0
+    }
+
+    const getHistoricalRate = (date: Date) => {
+      const dateStr = date.toISOString().split("T")[0]
+      const match = bcvHistory.find((h: any) => h.fecha === dateStr)
+      if (match) return parseFloat(match.tasa) || bcvRate || 40.0
+      
+      let closest = null
+      let minDiff = Infinity
+      bcvHistory.forEach((h: any) => {
+        const hDate = new Date(h.fecha)
+        const diff = Math.abs(date.getTime() - hDate.getTime())
+        if (diff < minDiff) {
+          minDiff = diff
+          closest = parseFloat(h.tasa)
+        }
+      })
+      return closest || bcvRate || 40.0
+    }
+
+    const parseDateStr = (dStr: string) => {
+      if (!dStr) return null
+      const clean = dStr.replace(/[^\d/:-]/g, "").trim()
+      if (clean.includes("/") && clean.split("/").length >= 3) {
+        const pts = clean.split("/")
+        let year = parseInt(pts[2].split(" ")[0])
+        if (year < 100) year += 2000
+        return new Date(year, parseInt(pts[1]) - 1, parseInt(pts[0]))
+      }
+      const parsed = Date.parse(clean)
+      return isNaN(parsed) ? null : new Date(parsed)
+    }
+
+    // Procesar préstamos web cobrados
+    loans.forEach((l: any) => {
+      if (l.estado.toLowerCase() === "pagado") {
+        const date = parseDateStr(l.timestamp)
+        if (date) {
+          const rate = cleanNum(l.bcvRate) || bcvRate || 40.0
+          const montoBs = cleanNum(l.monto)
+          const totalBs = cleanNum(l.totalPagar)
+          const interestBs = totalBs - montoBs
+          const interestUsd = rate > 0 ? interestBs / rate : 0
+          paidList.push({ date, interestUsd })
+        }
+      }
+    })
+
+    // Procesar préstamos de carga manual cobrados
+    manualLoans.forEach((ml: any) => {
+      if (ml.estado.toLowerCase() === "pagado") {
+        const date = parseDateStr(ml.fechaPago || ml.fechaSolicitud)
+        if (date) {
+          const rate = getHistoricalRate(date)
+          const montoBs = cleanNum(ml.montoSolicitado)
+          const deudaBs = cleanNum(ml.deuda)
+          const interestBs = deudaBs - montoBs
+          const interestUsd = rate > 0 ? interestBs / rate : 0
+          paidList.push({ date, interestUsd })
+        }
+      }
+    })
+
+    if (paidList.length === 0) return []
+
+    // Ordenar cronológicamente
+    paidList.sort((a, b) => a.date.getTime() - b.date.getTime())
+
+    // Iniciar desde la primera fecha de cobro ajustada a quincena
+    const startDate = new Date(paidList[0].date)
+    if (startDate.getDate() <= 15) {
+      startDate.setDate(1)
+    } else {
+      startDate.setDate(16)
+    }
+    startDate.setHours(0, 0, 0, 0)
+
+    const today = new Date()
+    const cycles: {
+      name: string
+      startDate: Date
+      endDate: Date
+      startCapital: number
+      earnings: number
+      endCapital: number
+      growthPct: number
+    }[] = []
+
+    let currentStart = new Date(startDate)
+    let currentCapital = capitalBase
+
+    while (currentStart.getTime() <= today.getTime()) {
+      let currentEnd = new Date(currentStart)
+      if (currentStart.getDate() === 1) {
+        currentEnd.setDate(15)
+      } else {
+        currentEnd.setMonth(currentEnd.getMonth() + 1)
+        currentEnd.setDate(0)
+      }
+      currentEnd.setHours(23, 59, 59, 999)
+
+      // Cobros acumulados en esta quincena
+      const cyclePaid = paidList.filter(
+        (p) => p.date.getTime() >= currentStart.getTime() && p.date.getTime() <= currentEnd.getTime()
+      )
+      const earnings = cyclePaid.reduce((acc, p) => acc + p.interestUsd, 0)
+      const endCapital = currentCapital + earnings
+      const growthPct = currentCapital > 0 ? (earnings / currentCapital) * 100 : 0
+
+      const quincenaLabel = currentStart.getDate() === 1 ? "1ra Quincena" : "2da Quincena"
+      const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+      const cycleName = `${quincenaLabel} de ${monthNames[currentStart.getMonth()]} ${currentStart.getFullYear()}`
+
+      cycles.push({
+        name: cycleName,
+        startDate: new Date(currentStart),
+        endDate: new Date(currentEnd),
+        startCapital: currentCapital,
+        earnings,
+        endCapital,
+        growthPct,
+      })
+
+      currentCapital = endCapital
+      currentStart = new Date(currentEnd)
+      currentStart.setDate(currentStart.getDate() + 1)
+      currentStart.setHours(0, 0, 0, 0)
+    }
+
+    return cycles.reverse()
+  }, [loans, manualLoans, bcvHistory, bcvRate, capitalBase])
+
   // Helper to calculate user level and total paid volume dynamically in frontend
   const getUserLevelInfo = useMemo(() => {
     return (userObj: any) => {
@@ -1581,6 +1797,96 @@ export default function AdminDashboard() {
                 </div>
               </form>
             </div>
+
+            {/* SECTION: Ciclos de Inversión Quincenales y Crecimiento Acumulado */}
+            <div className="bg-card border border-border p-6 rounded-2xl shadow-xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border/60 pb-4 gap-2">
+                <div className="flex items-center gap-2 text-primary">
+                  <TrendingUp className="h-5.5 w-5.5 text-emerald-400" />
+                  <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-foreground">
+                    Ciclos de Inversión Quincenales y Crecimiento de Capital
+                  </h3>
+                </div>
+                <span className="text-[10px] text-muted-foreground bg-secondary px-2.5 py-1 border border-border rounded font-bold uppercase">
+                  Progresión Compuesta (Base + Intereses Cobrados)
+                </span>
+              </div>
+
+              {investmentCycles.length === 0 ? (
+                <div className="text-center py-10 text-xs text-muted-foreground border border-dashed border-border rounded-xl">
+                  Sin registros de préstamos cobrados (pagados) para calcular los ciclos de inversión.
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* KPI Summary boxes of compound progression */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-zinc-950/40 p-4 border border-border rounded-xl">
+                      <p className="text-muted-foreground font-semibold uppercase text-[9px] tracking-wider">Ciclos Evaluados</p>
+                      <p className="text-lg font-bold font-mono text-foreground mt-0.5">{investmentCycles.length} quincenas</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Desde el primer préstamo cobrado</p>
+                    </div>
+                    <div className="bg-zinc-950/40 p-4 border border-border rounded-xl">
+                      <p className="text-muted-foreground font-semibold uppercase text-[9px] tracking-wider">Capital de Trabajo Actual</p>
+                      <p className="text-lg font-bold font-mono text-emerald-400 mt-0.5">
+                        ${investmentCycles[0].endCapital.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Base inicial: ${capitalBase.toFixed(2)} USD</p>
+                    </div>
+                    <div className="bg-zinc-950/40 p-4 border border-border rounded-xl">
+                      <p className="text-muted-foreground font-semibold uppercase text-[9px] tracking-wider">Crecimiento Compuesto Total</p>
+                      <p className="text-lg font-bold font-mono text-primary mt-0.5">
+                        +{((investmentCycles[0].endCapital - capitalBase) / capitalBase * 100).toFixed(2)}%
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        +${(investmentCycles[0].endCapital - capitalBase).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD de ganancia acumulada
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Cycles Ledger Table */}
+                  <div className="overflow-x-auto border border-border/80 rounded-xl">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-zinc-950 border-b border-border text-muted-foreground font-semibold uppercase tracking-wider">
+                          <th className="px-4 py-3">Ciclo / Quincena</th>
+                          <th className="px-4 py-3">Rango de Fechas</th>
+                          <th className="px-4 py-3 text-right">Capital Inicial (USD)</th>
+                          <th className="px-4 py-3 text-right">Ganancia Cobrada (USD)</th>
+                          <th className="px-4 py-3 text-right">Capital Final (USD)</th>
+                          <th className="px-4 py-3 text-center">Crecimiento</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60 font-mono text-[11px]">
+                        {investmentCycles.map((cycle, idx) => (
+                          <tr key={idx} className="hover:bg-zinc-950/20 transition-colors">
+                            <td className="px-4 py-3 font-bold text-foreground">{cycle.name}</td>
+                            <td className="px-4 py-3 text-muted-foreground text-[10px]">
+                              {cycle.startDate.toLocaleDateString("es-VE")} al {cycle.endDate.toLocaleDateString("es-VE")}
+                            </td>
+                            <td className="px-4 py-3 text-right font-semibold">
+                              ${cycle.startCapital.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-4 py-3 text-right font-bold text-emerald-400">
+                              +${cycle.earnings.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-4 py-3 text-right font-bold text-primary">
+                              ${cycle.endCapital.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                cycle.earnings > 0 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-zinc-950/80 text-muted-foreground border border-border"
+                              }`}>
+                                +{cycle.growthPct.toFixed(2)}%
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -2259,41 +2565,68 @@ export default function AdminDashboard() {
             {/* History of loans of this client */}
             <div className="space-y-3">
               <h4 className="font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5">
-                <FileText className="h-4 w-4 text-primary" /> Historial de Préstamos del Cliente
+                <FileText className="h-4 w-4 text-primary" /> Historial Consolidado de Préstamos (Web + WhatsApp / Manual)
               </h4>
 
               <div className="border border-border rounded-xl overflow-hidden text-xs">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-zinc-950 border-b border-border text-muted-foreground font-semibold">
+                      <th className="px-4 py-2.5">Canal</th>
                       <th className="px-4 py-2.5">Fecha</th>
                       <th className="px-4 py-2.5">Modalidad</th>
-                      <th className="px-4 py-2.5">Monto</th>
-                      <th className="px-4 py-2.5">Total a Pagar</th>
-                      <th className="px-4 py-2.5">Estatus</th>
+                      <th className="px-4 py-2.5 text-right">Monto</th>
+                      <th className="px-4 py-2.5 text-right">Total a Pagar</th>
+                      <th className="px-4 py-2.5">Mora / Notas</th>
+                      <th className="px-4 py-2.5 text-center">Estatus</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {loans.filter((l: any) => l.cedula.replace(/\D/g, "") === selectedUser.cedula.replace(/\D/g, "")).length === 0 ? (
+                    {combinedUserLoans.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
-                          El cliente no registra solicitudes de préstamo aún.
+                        <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
+                          El cliente no registra solicitudes ni préstamos en el historial aún.
                         </td>
                       </tr>
                     ) : (
-                      loans
-                        .filter((l: any) => l.cedula.replace(/\D/g, "") === selectedUser.cedula.replace(/\D/g, ""))
-                        .map((l: any, i: number) => (
+                      combinedUserLoans.map((l: any, i: number) => {
+                        const isWeb = l.source === "Web"
+                        const isPagado = l.estado.toLowerCase() === "pagado"
+                        const isRechazado = l.estado.toLowerCase() === "rechazado"
+                        return (
                           <tr key={i} className="border-b border-border/40 hover:bg-zinc-950/20 transition-colors">
-                            <td className="px-4 py-3 text-muted-foreground">{l.timestamp}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                isWeb ? "bg-blue-500/10 border border-blue-500/20 text-blue-400" : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                              }`}>
+                                {l.source}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground font-mono">{l.fecha}</td>
                             <td className="px-4 py-3 font-medium">{l.modalidad}</td>
-                            <td className="px-4 py-3 font-semibold font-mono">{l.monto}</td>
-                            <td className="px-4 py-3 text-primary font-semibold font-mono">{l.totalPagar}</td>
-                            <td className="px-4 py-3 font-bold uppercase text-[10px]">
-                              {l.estado}
+                            <td className="px-4 py-3 text-right font-mono font-semibold">{l.monto}</td>
+                            <td className="px-4 py-3 text-right text-primary font-mono font-semibold">{l.totalPagar}</td>
+                            <td className="px-4 py-3 text-muted-foreground font-mono text-[10px]">
+                              {l.mora !== "N/A" ? (
+                                <span className="text-red-400 font-semibold">Mora: {l.mora}</span>
+                              ) : l.referencia !== "N/A" ? (
+                                <span>Ref: {l.referencia}</span>
+                              ) : (
+                                <span>-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                isPagado ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                                isRechazado ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                                "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                              }`}>
+                                {l.estado}
+                              </span>
                             </td>
                           </tr>
-                        ))
+                        )
+                      })
                     )}
                   </tbody>
                 </table>
