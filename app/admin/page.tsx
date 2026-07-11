@@ -187,6 +187,7 @@ export default function AdminDashboard() {
   const [selectedPaymentLoan, setSelectedPaymentLoan] = useState<any | null>(null)
   const [paymentReferencia, setPaymentReferencia] = useState("")
   const [paymentComprobanteBase64, setPaymentComprobanteBase64] = useState("")
+  const [skipComprobante, setSkipComprobante] = useState(false)
   const [paymentOcrScanning, setPaymentOcrScanning] = useState(false)
   const [paymentSubmitting, setPaymentSubmitting] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
@@ -1115,13 +1116,15 @@ export default function AdminDashboard() {
   const handleSubmitPaymentVerification = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedPaymentLoan) return
-    if (!paymentReferencia.trim()) {
-      setPaymentError("El número de referencia de la transacción es obligatorio.")
-      return
-    }
-    if (!paymentComprobanteBase64) {
-      setPaymentError("Por favor carga la imagen del comprobante de pago.")
-      return
+    if (!skipComprobante) {
+      if (!paymentReferencia.trim()) {
+        setPaymentError("El número de referencia de la transacción es obligatorio.")
+        return
+      }
+      if (!paymentComprobanteBase64) {
+        setPaymentError("Por favor carga la imagen del comprobante de pago.")
+        return
+      }
     }
 
     setPaymentSubmitting(true)
@@ -1136,8 +1139,8 @@ export default function AdminDashboard() {
           timestamp: selectedPaymentLoan.timestamp,
           cedula: selectedPaymentLoan.cedula,
           estado: "Pagado",
-          referencia: paymentReferencia,
-          comprobanteBase64: paymentComprobanteBase64,
+          referencia: skipComprobante ? "Manual - Sin comprobante" : paymentReferencia,
+          comprobanteBase64: skipComprobante ? undefined : paymentComprobanteBase64,
           isManual: selectedPaymentLoan.isManual || false,
           rowIndex: selectedPaymentLoan.rowIndex || undefined
         }),
@@ -1148,7 +1151,7 @@ export default function AdminDashboard() {
         throw new Error(result.message || "Error al confirmar pago")
       }
 
-      setPaymentSuccess("¡Pago confirmado y comprobante subido correctamente a Google Drive!")
+      setPaymentSuccess(skipComprobante ? "¡Pago confirmado correctamente!" : "¡Pago confirmado y comprobante subido correctamente a Google Drive!")
       mutate()
 
       setTimeout(() => {
@@ -3179,49 +3182,76 @@ export default function AdminDashboard() {
             </div>
 
             <form onSubmit={handleSubmitPaymentVerification} className="space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="text-muted-foreground font-semibold">Subir Foto del Comprobante de Pago:</label>
+              {/* Skip Comprobante Checkbox */}
+              <label className="flex items-start gap-2 bg-secondary/30 border border-border/80 p-3 rounded-lg cursor-pointer hover:bg-secondary/45 transition-colors">
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleComprobanteFileChange}
-                  className="w-full text-xs text-muted-foreground file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90 file:cursor-pointer"
-                  required
+                  type="checkbox"
+                  checked={skipComprobante}
+                  onChange={(e) => {
+                    setSkipComprobante(e.target.checked)
+                    if (e.target.checked) {
+                      setPaymentReferencia("")
+                      setPaymentComprobanteBase64("")
+                      setPaymentError(null)
+                    }
+                  }}
+                  className="accent-primary h-4 w-4 shrink-0 mt-0.5"
                 />
-              </div>
-
-              {paymentComprobanteBase64 && (
-                <div className="flex items-center justify-between bg-zinc-950/30 border border-border p-3 rounded-lg gap-2">
-                  <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">Imagen del comprobante cargada.</span>
-                  <button
-                    type="button"
-                    disabled={paymentOcrScanning}
-                    onClick={handleScanReceiptOcr}
-                    className="rounded-md bg-secondary hover:bg-muted border border-border text-foreground px-3 py-1.5 text-[10px] font-semibold transition-all flex items-center gap-1 uppercase shrink-0 disabled:opacity-50"
-                  >
-                    {paymentOcrScanning ? (
-                      <>Escaneando...</>
-                    ) : (
-                      <>Escanear con OCR AI</>
-                    )}
-                  </button>
+                <div>
+                  <p className="font-bold text-foreground">Marcar pago de forma manual (Sin comprobante)</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
+                    Activa esto si no tienes una captura de pantalla y deseas confirmar el cobro directamente en Google Sheets.
+                  </p>
                 </div>
-              )}
+              </label>
 
-              <div className="space-y-1.5">
-                <label className="text-muted-foreground font-semibold">Número de Referencia de Transacción:</label>
-                <input
-                  type="text"
-                  placeholder="Ej. 24896740"
-                  value={paymentReferencia}
-                  onChange={(e) => setPaymentReferencia(e.target.value)}
-                  className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
-                  required
-                />
-                <p className="text-[9px] text-muted-foreground">
-                  * Este número servirá para auto-nombrar la imagen en Google Drive (`&lt;referencia&gt;.png`).
-                </p>
-              </div>
+              {!skipComprobante && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-muted-foreground font-semibold">Subir Foto del Comprobante de Pago:</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleComprobanteFileChange}
+                      className="w-full text-xs text-muted-foreground file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90 file:cursor-pointer"
+                      required={!skipComprobante}
+                    />
+                  </div>
+
+                  {paymentComprobanteBase64 && (
+                    <div className="flex items-center justify-between bg-zinc-950/30 border border-border p-3 rounded-lg gap-2">
+                      <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">Imagen del comprobante cargada.</span>
+                      <button
+                        type="button"
+                        disabled={paymentOcrScanning}
+                        onClick={handleScanReceiptOcr}
+                        className="rounded-md bg-secondary hover:bg-muted border border-border text-foreground px-3 py-1.5 text-[10px] font-semibold transition-all flex items-center gap-1 uppercase shrink-0 disabled:opacity-50"
+                      >
+                        {paymentOcrScanning ? (
+                          <>Escaneando...</>
+                        ) : (
+                          <>Escanear con OCR AI</>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <label className="text-muted-foreground font-semibold">Número de Referencia de Transacción:</label>
+                    <input
+                      type="text"
+                      placeholder="Ej. 24896740"
+                      value={paymentReferencia}
+                      onChange={(e) => setPaymentReferencia(e.target.value)}
+                      className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                      required={!skipComprobante}
+                    />
+                    <p className="text-[9px] text-muted-foreground">
+                      * Este número servirá para auto-nombrar la imagen en Google Drive (`&lt;referencia&gt;.png`).
+                    </p>
+                  </div>
+                </>
+              )}
 
               {paymentError && <p className="text-xs text-destructive font-semibold">✗ {paymentError}</p>}
               {paymentSuccess && <p className="text-xs text-emerald-500 font-semibold">✓ {paymentSuccess}</p>}
