@@ -136,6 +136,19 @@ export default function AdminDashboard() {
   const [manualError, setManualError] = useState<string | null>(null)
   const [manualSuccess, setManualSuccess] = useState<string | null>(null)
 
+  // Sub-states: Edit Loan Details Form
+  const [isEditLoanModalOpen, setIsEditLoanModalOpen] = useState(false)
+  const [editingLoan, setEditingLoan] = useState<any | null>(null)
+  const [editMonto, setEditMonto] = useState("")
+  const [editTotalPagar, setEditTotalPagar] = useState("")
+  const [editModalidad, setEditModalidad] = useState("Pago Total")
+  const [editFechas, setEditFechas] = useState("")
+  const [editReferencia, setEditReferencia] = useState("")
+  const [editEstado, setEditEstado] = useState("Aprobado")
+  const [editSubmitting, setEditSubmitting] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+  const [editSuccess, setEditSuccess] = useState<string | null>(null)
+
   // Sub-states: WhatsApp Client Registration Form
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false)
   const [waNombres, setWaNombres] = useState("")
@@ -194,6 +207,8 @@ export default function AdminDashboard() {
   const [skipComprobante, setSkipComprobante] = useState(false)
   const [paymentMoneda, setPaymentMoneda] = useState("Bs.")
   const [paymentNota, setPaymentNota] = useState("")
+  const [isAbono, setIsAbono] = useState(false)
+  const [paymentMontoAbono, setPaymentMontoAbono] = useState("")
   const [paymentOcrScanning, setPaymentOcrScanning] = useState(false)
   const [paymentSubmitting, setPaymentSubmitting] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
@@ -1150,6 +1165,8 @@ export default function AdminDashboard() {
     setSkipComprobante(false)
     setPaymentMoneda("Bs.")
     setPaymentNota("")
+    setIsAbono(false)
+    setPaymentMontoAbono("")
     setPaymentError(null)
     setPaymentSuccess(null)
   }
@@ -1168,6 +1185,34 @@ export default function AdminDashboard() {
         return
       }
     }
+    if (isAbono) {
+      if (!paymentMontoAbono || parseFloat(paymentMontoAbono) <= 0) {
+        setPaymentError("Por favor ingresa un monto válido para el abono.")
+        return
+      }
+      
+      const cleanStr = selectedPaymentLoan.totalPagar.toString().replace(/[^\d.,-]/g, "")
+      let currentDebt = parseFloat(cleanStr) || 0
+      if (cleanStr.includes(".") && cleanStr.includes(",")) {
+        if (cleanStr.indexOf(".") < cleanStr.indexOf(",")) {
+          currentDebt = parseFloat(cleanStr.replace(/\./g, "").replace(",", ".")) || 0
+        } else {
+          currentDebt = parseFloat(cleanStr.replace(/,/g, "")) || 0
+        }
+      } else if (cleanStr.includes(",")) {
+        const parts = cleanStr.split(",")
+        if (parts[parts.length - 1].length === 3) {
+          currentDebt = parseFloat(cleanStr.replace(/,/g, "")) || 0
+        } else {
+          currentDebt = parseFloat(cleanStr.replace(",", ".")) || 0
+        }
+      }
+      
+      if (parseFloat(paymentMontoAbono) > currentDebt) {
+        setPaymentError(`El abono no puede superar la deuda actual (${currentDebt.toLocaleString("es-VE", { minimumFractionDigits: 2 })}).`)
+        return
+      }
+    }
 
     setPaymentSubmitting(true)
     setPaymentError(null)
@@ -1180,13 +1225,15 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           timestamp: selectedPaymentLoan.timestamp,
           cedula: selectedPaymentLoan.cedula,
-          estado: "Pagado",
+          estado: isAbono ? "Aprobado" : "Pagado",
           referencia: skipComprobante ? "Manual - Sin comprobante" : paymentReferencia,
           comprobanteBase64: skipComprobante ? undefined : paymentComprobanteBase64,
           isManual: selectedPaymentLoan.isManual || false,
           rowIndex: selectedPaymentLoan.rowIndex || undefined,
           monedaPago: paymentMoneda,
-          notaPago: paymentNota
+          notaPago: paymentNota,
+          isAbono: isAbono,
+          montoAbono: paymentMontoAbono
         }),
       })
 
@@ -1205,6 +1252,83 @@ export default function AdminDashboard() {
       setPaymentError(err.message || "Error al procesar la confirmación del pago")
     } finally {
       setPaymentSubmitting(false)
+    }
+  }
+
+  const openEditLoanModal = (l: any) => {
+    setEditingLoan(l)
+    
+    // Clean currency symbols from amount/debt before setting them
+    const cleanMonto = l.monto ? l.monto.toString().replace(/[^\d.,-]/g, "") : ""
+    const cleanTotalPagar = l.totalPagar ? l.totalPagar.toString().replace(/[^\d.,-]/g, "") : ""
+    
+    setEditMonto(cleanMonto)
+    setEditTotalPagar(cleanTotalPagar)
+    setEditModalidad(l.modalidad || "Pago Total")
+    setEditFechas(l.fechas || l.timestamp || "")
+    setEditReferencia(l.referencia === "N/A" ? "" : (l.referencia || ""))
+    setEditEstado(l.estado || "Aprobado")
+    
+    setEditError(null)
+    setEditSuccess(null)
+    setIsEditLoanModalOpen(true)
+  }
+
+  const handleEditLoanDetails = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingLoan) return
+    if (!editMonto || parseFloat(editMonto) <= 0) {
+      setEditError("El monto debe ser un número positivo.")
+      return
+    }
+    if (!editTotalPagar || parseFloat(editTotalPagar) <= 0) {
+      setEditError("El total a pagar debe ser un número positivo.")
+      return
+    }
+    if (!editFechas.trim()) {
+      setEditError("Las fechas de pago no pueden estar vacías.")
+      return
+    }
+
+    setEditSubmitting(true)
+    setEditError(null)
+    setEditSuccess(null)
+
+    try {
+      const res = await fetch("/api/admin/edit-loan-details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isManual: editingLoan.isManual || false,
+          rowIndex: editingLoan.rowIndex || undefined,
+          timestamp: editingLoan.timestamp,
+          cedula: editingLoan.cedula,
+          monto: parseFloat(editMonto),
+          totalPagar: parseFloat(editTotalPagar),
+          modalidad: editModalidad,
+          fechas: editFechas,
+          referencia: editReferencia,
+          estado: editEstado
+        }),
+      })
+
+      const result = await res.json()
+      if (!res.ok) {
+        throw new Error(result.message || "Error al guardar los cambios")
+      }
+
+      setEditSuccess("¡Los detalles del préstamo han sido actualizados exitosamente!")
+      mutate()
+
+      setTimeout(() => {
+        setIsEditLoanModalOpen(false)
+        setEditingLoan(null)
+        setEditSuccess(null)
+      }, 1500)
+    } catch (err: any) {
+      setEditError(err.message || "Ocurrió un error inesperado al editar el préstamo")
+    } finally {
+      setEditSubmitting(false)
     }
   }
 
@@ -2345,6 +2469,14 @@ export default function AdminDashboard() {
                                       REVERTIR A PENDIENTE
                                     </button>
                                   )}
+
+                                  <button
+                                    onClick={() => openEditLoanModal(l)}
+                                    className="bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-2 py-1 rounded text-[10px] font-semibold transition-all uppercase"
+                                    title="Editar detalles del préstamo"
+                                  >
+                                    Editar
+                                  </button>
                                 </div>
                               )}
                             </td>
@@ -3309,6 +3441,79 @@ export default function AdminDashboard() {
                 </div>
               </label>
 
+              {/* Tipo de Registro: Pago Completo o Abono */}
+              <div className="space-y-2 border-t border-border/40 pt-3">
+                <label className="text-muted-foreground font-semibold block">Clasificación del Pago:</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAbono(false)
+                      setPaymentMontoAbono("")
+                    }}
+                    className={`py-2 px-3 rounded-lg border text-center font-semibold transition-all ${
+                      !isAbono 
+                        ? "bg-primary/20 border-primary text-primary" 
+                        : "bg-zinc-950 border-border hover:bg-secondary/40 text-muted-foreground"
+                    }`}
+                  >
+                    Pago Completo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAbono(true)}
+                    className={`py-2 px-3 rounded-lg border text-center font-semibold transition-all ${
+                      isAbono 
+                        ? "bg-primary/20 border-primary text-primary" 
+                        : "bg-zinc-950 border-border hover:bg-secondary/40 text-muted-foreground"
+                    }`}
+                  >
+                    Abono (Pago Parcial)
+                  </button>
+                </div>
+              </div>
+
+              {/* Si es Abono, mostrar input del monto */}
+              {isAbono && (
+                <div className="space-y-1.5 animate-fadeIn">
+                  <label className="text-muted-foreground font-semibold">Monto del Abono:</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Ej. 500"
+                    value={paymentMontoAbono}
+                    onChange={(e) => setPaymentMontoAbono(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                    required={isAbono}
+                  />
+                  {/* Estimación de la deuda restante */}
+                  {paymentMontoAbono && parseFloat(paymentMontoAbono) > 0 && (() => {
+                    const cleanDebtStr = selectedPaymentLoan.totalPagar.toString().replace(/[^\d.,-]/g, "")
+                    let currentDebt = parseFloat(cleanDebtStr) || 0
+                    if (cleanDebtStr.includes(".") && cleanDebtStr.includes(",")) {
+                      if (cleanDebtStr.indexOf(".") < cleanDebtStr.indexOf(",")) {
+                        currentDebt = parseFloat(cleanDebtStr.replace(/\./g, "").replace(",", ".")) || 0
+                      } else {
+                        currentDebt = parseFloat(cleanDebtStr.replace(/,/g, "")) || 0
+                      }
+                    } else if (cleanDebtStr.includes(",")) {
+                      const parts = cleanDebtStr.split(",")
+                      if (parts[parts.length - 1].length === 3) {
+                        currentDebt = parseFloat(cleanDebtStr.replace(/,/g, "")) || 0
+                      } else {
+                        currentDebt = parseFloat(cleanDebtStr.replace(",", ".")) || 0
+                      }
+                    }
+                    const diff = Math.max(0, currentDebt - parseFloat(paymentMontoAbono))
+                    return (
+                      <p className="text-[10px] text-amber-400 font-medium">
+                        Deuda restante estimada: Bs. {diff.toLocaleString("es-VE", { minimumFractionDigits: 2 })}
+                      </p>
+                    )
+                  })()}
+                </div>
+              )}
+
               {!skipComprobante && (
                 <>
                   <div className="space-y-1.5">
@@ -3393,6 +3598,128 @@ export default function AdminDashboard() {
                 className="w-full rounded-md bg-primary py-2.5 text-xs font-semibold tracking-widest text-primary-foreground hover:bg-primary/95 disabled:opacity-50 transition-opacity uppercase"
               >
                 {paymentSubmitting ? "REGISTRANDO PAGO EN SISTEMA..." : "CONFIRMAR Y VERIFICAR PAGO"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Editar Detalles de Préstamo */}
+      {isEditLoanModalOpen && editingLoan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-card border border-border w-full max-w-md p-6 rounded-2xl relative shadow-2xl space-y-4 my-8">
+            <button
+              onClick={() => {
+                setIsEditLoanModalOpen(false)
+                setEditingLoan(null)
+                setEditError(null)
+                setEditSuccess(null)
+              }}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors p-1.5 hover:bg-secondary rounded-lg"
+            >
+              <XCircle className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-2 text-primary border-b border-border pb-3">
+              <FileText className="h-5.5 w-5.5" />
+              <h3 className="font-heading text-base font-bold text-foreground">
+                Editar Detalles del Préstamo
+              </h3>
+            </div>
+
+            <div className="bg-zinc-950/50 p-3 rounded-lg border border-border space-y-1 text-[10px]">
+              <p><span className="text-muted-foreground">Cliente:</span> <span className="font-semibold text-foreground">{editingLoan.nombres} {editingLoan.apellidos}</span></p>
+              <p><span className="text-muted-foreground">Cédula:</span> <span className="font-semibold font-mono">{editingLoan.cedula}</span></p>
+              <p><span className="text-muted-foreground">Fecha Original:</span> <span className="font-semibold font-mono">{editingLoan.timestamp}</span></p>
+              <p><span className="text-muted-foreground">Origen:</span> <span className="font-bold text-primary">{editingLoan.source}</span></p>
+            </div>
+
+            <form onSubmit={handleEditLoanDetails} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Monto Solicitado:</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editMonto}
+                    onChange={(e) => setEditMonto(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Total a Pagar / Deuda:</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editTotalPagar}
+                    onChange={(e) => setEditTotalPagar(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Modalidad:</label>
+                  <select
+                    value={editModalidad}
+                    onChange={(e) => setEditModalidad(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                  >
+                    <option value="Pago Total">Pago Total (Contado)</option>
+                    <option value="Cuotas">Cuotas (2 Cuotas)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Estatus:</label>
+                  <select
+                    value={editEstado}
+                    onChange={(e) => setEditEstado(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                  >
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="Aprobado">Aprobado / Por Pagar</option>
+                    <option value="Pagado">Pagado / Completado</option>
+                    <option value="Rechazado">Rechazado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground font-semibold">Fecha(s) de Pago (Texto):</label>
+                <input
+                  type="text"
+                  value={editFechas}
+                  onChange={(e) => setEditFechas(e.target.value)}
+                  className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground font-semibold">Referencia de Pago (Opcional):</label>
+                <input
+                  type="text"
+                  placeholder="Ej. 24896740"
+                  value={editReferencia}
+                  onChange={(e) => setEditReferencia(e.target.value)}
+                  className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                />
+              </div>
+
+              {editError && <p className="text-xs text-destructive font-semibold">✗ {editError}</p>}
+              {editSuccess && <p className="text-xs text-emerald-500 font-semibold">✓ {editSuccess}</p>}
+
+              <button
+                type="submit"
+                disabled={editSubmitting || editSuccess !== null}
+                className="w-full rounded-md bg-primary py-2.5 text-xs font-semibold tracking-widest text-primary-foreground hover:bg-primary/95 disabled:opacity-50 transition-opacity uppercase"
+              >
+                {editSubmitting ? "GUARDANDO CAMBIOS..." : "GUARDAR CAMBIOS"}
               </button>
             </form>
           </div>

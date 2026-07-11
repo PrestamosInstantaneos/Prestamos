@@ -4,6 +4,29 @@ import { getSheetsClient } from "@/lib/google-sheets"
 import { google } from "googleapis"
 import { Readable } from "stream"
 
+const parseCurrencyValue = (val: any): number => {
+  if (typeof val === "number") return val
+  if (!val) return 0
+  const s = val.toString().trim()
+  const cleaned = s.replace(/[^\d.,-]/g, "")
+  if (cleaned.includes(".") && cleaned.includes(",")) {
+    if (cleaned.indexOf(".") < cleaned.indexOf(",")) {
+      return parseFloat(cleaned.replace(/\./g, "").replace(",", ".")) || 0
+    } else {
+      return parseFloat(cleaned.replace(/,/g, "")) || 0
+    }
+  }
+  if (cleaned.includes(",")) {
+    const parts = cleaned.split(",")
+    if (parts[parts.length - 1].length === 3) {
+      return parseFloat(cleaned.replace(/,/g, "")) || 0
+    } else {
+      return parseFloat(cleaned.replace(",", ".")) || 0
+    }
+  }
+  return parseFloat(cleaned) || 0
+}
+
 export const runtime = "nodejs"
 
 export async function POST(req: NextRequest) {
@@ -19,7 +42,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "No autorizado. Acceso denegado." }, { status: 403 })
     }
 
-    const { timestamp, cedula, estado, referencia, comprobanteBase64, isManual, rowIndex, notaPago, monedaPago } = await req.json()
+    const { timestamp, cedula, estado, referencia, comprobanteBase64, isManual, rowIndex, notaPago, monedaPago, isAbono, montoAbono } = await req.json()
     if (!estado) {
       return NextResponse.json({ message: "Falta el campo obligatorio (estado)." }, { status: 400 })
     }
@@ -39,7 +62,7 @@ export async function POST(req: NextRequest) {
       
       const manualRes = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: `'Carga manual'!A${rowIndex}:J${rowIndex}`,
+        range: `'Carga manual'!A${rowIndex}:L${rowIndex}`,
       })
       const manualRow = manualRes.data.values?.[0] || []
       const solicitante = manualRow[0] || "Cliente WhatsApp"
@@ -47,6 +70,22 @@ export async function POST(req: NextRequest) {
       clientFolderName = solicitante.trim()
       targetRef = referencia || manualRow[8] || ""
       driveLink = manualRow[9] || ""
+
+      loanInfo = {
+        timestamp: manualRow[5] || "",
+        cedula: cedula || "N/A",
+        nombres: solicitante,
+        apellidos: "",
+        telefono: manualRow[4] || "N/A",
+        modalidad: manualRow[5] || "N/A",
+        monto: manualRow[2] || "0",
+        fechas: manualRow[6] || "N/A",
+        totalPagar: manualRow[3] || "0",
+        referenciaExistente: manualRow[8] || "",
+        comprobanteExistente: manualRow[9] || "",
+        notaExistente: manualRow[10] || "",
+        monedaExistente: manualRow[11] || "",
+      }
     } else {
       if (!timestamp || !cedula) {
         return NextResponse.json({ message: "Faltan campos obligatorios para préstamo web (timestamp, cedula)." }, { status: 400 })
@@ -54,7 +93,7 @@ export async function POST(req: NextRequest) {
 
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: "'Solicitudes'!A:N",
+        range: "'Solicitudes'!A:P",
       })
 
       const rows = response.data.values || []
@@ -80,6 +119,8 @@ export async function POST(req: NextRequest) {
             totalPagar: row[9] || "",
             referenciaExistente: row[12] || "",
             comprobanteExistente: row[13] || "",
+            notaExistente: row[14] || "",
+            monedaExistente: row[15] || "",
           }
           break
         }
@@ -207,8 +248,60 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    let targetEstado = estado
+    let targetNota = notaPago || ""
+    let targetMoneda = monedaPago || "Bs."
+    let isFullyPaid = estado.toLowerCase() === "pagado"
+
+    if (isAbono && parseFloat(montoAbono) > 0) {
+      const currentDebt = isManual ? parseCurrencyValue(manualRow[3]) : parseCurrencyValue(loanInfo.totalPagar)
+      const parsedAbono = parseFloat(montoAbono)
+      const newDebtVal = Math.max(0, currentDebt - parsedAbono)
+
+      const originalString = isManual ? (manualRow[3] || "") : (loanInfo.totalPagar || "")
+      const hasDollar = originalString.toString().includes("$")
+      const hasEuro = originalString.toString().includes("€")
+      const symbol = hasDollar ? "$" : (hasEuro ? "€" : "Bs.")
+
+      const formattedNewDebt = `${symbol} ${newDebtVal.toLocaleString("es-VE", { minimumFractionDigits: 2 })}`
+
+      // Update outstanding amount inside Sheets
+      if (isManual) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: sheetId,
+          range: `'Carga manual'!D${rowIndex}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[formattedNewDebt]],
+          },
+        })
+      } else {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: sheetId,
+          range: `'Solicitudes'!J${rowIndexToUpdate}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[formattedNewDebt]],
+          },
+        })
+      }
+
+      // Construct historical abono note
+      const abonoNote = `Abono: ${targetMoneda} ${parsedAbono} (Ref: ${targetRef || "S/R"})`
+      const existingNote = isManual ? (manualRow[10] || "") : (loanInfo.notaExistente || "")
+      targetNota = existingNote ? `${existingNote} | ${abonoNote}` : abonoNote
+
+      if (newDebtVal === 0) {
+        targetEstado = "Pagado"
+        isFullyPaid = true
+      } else {
+        targetEstado = isManual ? "Aprobado" : (estado || "Aprobado")
+        isFullyPaid = false
+      }
+    }
+
     if (isManual) {
-      const capitalizedEstado = estado.charAt(0).toUpperCase() + estado.slice(1).toLowerCase()
+      const capitalizedEstado = targetEstado.charAt(0).toUpperCase() + targetEstado.slice(1).toLowerCase()
 
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
@@ -219,7 +312,7 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      if (capitalizedEstado.toLowerCase() === "pagado") {
+      if (capitalizedEstado.toLowerCase() === "pagado" || isFullyPaid) {
         const todayParts = new Date().toLocaleDateString("es-VE").split("/")
         const todayStr = `${todayParts[0]}/${todayParts[1]}/${todayParts[2]}`
         await sheets.spreadsheets.values.update({
@@ -237,7 +330,7 @@ export async function POST(req: NextRequest) {
         range: `'Carga manual'!I${rowIndex}:L${rowIndex}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-          values: [[targetRef || "", driveLink || "", notaPago || "", monedaPago || "Bs."]],
+          values: [[targetRef || "", driveLink || "", targetNota, targetMoneda]],
         },
       })
     } else {
@@ -246,7 +339,7 @@ export async function POST(req: NextRequest) {
         range: `'Solicitudes'!L${rowIndexToUpdate}:P${rowIndexToUpdate}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-          values: [[estado, targetRef || "", driveLink || "", notaPago || "", monedaPago || "Bs."]],
+          values: [[targetEstado, targetRef || "", driveLink || "", targetNota, targetMoneda]],
         },
       })
     }
@@ -258,26 +351,41 @@ export async function POST(req: NextRequest) {
     if (telegramBotToken && telegramChatId) {
       try {
         let statusIcon = "ℹ️"
-        if (estado === "Aprobado") statusIcon = "✅"
-        else if (estado === "Rechazado") statusIcon = "❌"
-        else if (estado === "Pagado") statusIcon = "💰"
+        if (targetEstado === "Aprobado") statusIcon = "✅"
+        else if (targetEstado === "Rechazado") statusIcon = "❌"
+        else if (targetEstado === "Pagado" || isFullyPaid) statusIcon = "💰"
 
         let receiptText = ""
-        if (estado === "Pagado") {
+        if (targetEstado === "Pagado" || isFullyPaid) {
           receiptText = `🔢 *Referencia:* ${targetRef || "N/A"}\n` +
             `📂 *Comprobante:* ${driveLink ? `[Ver en Drive](${driveLink})` : "No adjuntado"}\n`
+        }
+
+        let abonoText = ""
+        if (isAbono && parseFloat(montoAbono) > 0) {
+          const currentDebt = isManual ? parseCurrencyValue(manualRow[3]) : parseCurrencyValue(loanInfo.totalPagar)
+          const parsedAbono = parseFloat(montoAbono)
+          const newDebtVal = Math.max(0, currentDebt - parsedAbono)
+          const originalString = isManual ? (manualRow[3] || "") : (loanInfo.totalPagar || "")
+          const hasDollar = originalString.toString().includes("$")
+          const hasEuro = originalString.toString().includes("€")
+          const symbol = hasDollar ? "$" : (hasEuro ? "€" : "Bs.")
+
+          abonoText = `💸 *Abono Registrado:* ${targetMoneda} ${parsedAbono}\n` +
+            `⚖️ *Restante por Pagar:* ${symbol} ${newDebtVal.toLocaleString("es-VE", { minimumFractionDigits: 2 })}\n`
         }
 
         const messageText = `📢 *Actualización de Préstamo* 📢\n\n` +
           `👤 *Cliente:* ${loanInfo.nombres} ${loanInfo.apellidos}\n` +
           `🪪 *Cédula:* ${loanInfo.cedula}\n` +
           `📞 *Teléfono:* ${loanInfo.telefono}\n` +
-          `💰 *Monto:* ${loanInfo.monto}\n` +
+          `💰 *Monto Original:* ${loanInfo.monto}\n` +
           `📋 *Modalidad:* ${loanInfo.modalidad}\n` +
           `🗓️ *Fechas:* ${loanInfo.fechas}\n` +
-          `💵 *Total a pagar:* ${loanInfo.totalPagar}\n` +
+          `💵 *Total de la Deuda:* ${loanInfo.totalPagar}\n` +
+          abonoText +
           receiptText + `\n` +
-          `${statusIcon} *Nuevo Estatus:* \`${estado.toUpperCase()}\`\n` +
+          `${statusIcon} *Estatus:* \`${targetEstado.toUpperCase()}\`\n` +
           `⚙️ _Actualizado de forma manual por el Administrador._`
 
         await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
