@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   ChevronRight,
+  ChevronDown,
   ArrowLeft,
   KeyRound,
   RefreshCw,
@@ -122,6 +123,8 @@ export default function AdminDashboard() {
   // Sub-states: Manual Loan Form
   const [isManualLoanModalOpen, setIsManualLoanModalOpen] = useState(false)
   const [manualClientSelected, setManualClientSelected] = useState("") // selected client's telefono
+  const [manualClientSearch, setManualClientSearch] = useState("")
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false)
   const [manualMonto, setManualMonto] = useState("")
   const [manualMoneda, setManualMoneda] = useState("Bs.")
   const [manualModalidad, setManualModalidad] = useState("Pago Total")
@@ -623,6 +626,22 @@ export default function AdminDashboard() {
   const selectedManualClientObj = useMemo(() => {
     return users.find((u: any) => u.telefono === manualClientSelected) || null
   }, [manualClientSelected, users])
+
+  // Filtrado de clientes para el dropdown interactivo de préstamo manual
+  const filteredManualDropdownClients = useMemo(() => {
+    const search = manualClientSearch.toLowerCase().trim()
+    const sorted = [...users].sort((a: any, b: any) => a.nombres.localeCompare(b.nombres))
+    
+    if (search === "") return sorted
+
+    return sorted.filter((u: any) => {
+      return (
+        `${u.nombres} ${u.apellidos}`.toLowerCase().includes(search) ||
+        u.cedula.includes(search) ||
+        u.telefono.includes(search)
+      )
+    })
+  }, [users, manualClientSearch])
 
   // Auto-calculated Total to Pay for Manual Loan
   const computedManualTotal = useMemo(() => {
@@ -2819,6 +2838,8 @@ export default function AdminDashboard() {
             <button
               onClick={() => {
                 setIsManualLoanModalOpen(false)
+                setManualClientSearch("")
+                setIsClientDropdownOpen(false)
                 setManualError(null)
                 setManualSuccess(null)
               }}
@@ -2838,22 +2859,70 @@ export default function AdminDashboard() {
               {/* Client Selector Dropdown */}
               <div className="space-y-1.5">
                 <label className="text-muted-foreground font-semibold">Seleccionar Cliente Registrado:</label>
-                <select
-                  value={manualClientSelected}
-                  onChange={(e) => setManualClientSelected(e.target.value)}
-                  className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
-                  required
-                >
-                  <option value="">-- Elige un cliente --</option>
-                  {users
-                    .slice()
-                    .sort((a: any, b: any) => a.nombres.localeCompare(b.nombres))
-                    .map((u: any, idx: number) => (
-                      <option key={idx} value={u.telefono}>
-                        {u.nombres} {u.apellidos} (C.I. {u.cedula} - Tlf: {u.telefono})
-                      </option>
-                    ))}
-                </select>
+                <div className="relative">
+                  {/* Trigger Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsClientDropdownOpen(!isClientDropdownOpen)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3.5 py-2.5 text-left text-xs focus:border-primary focus:outline-none flex items-center justify-between hover:bg-secondary/40 transition-colors"
+                  >
+                    <span className="truncate">
+                      {selectedManualClientObj ? (
+                        `${selectedManualClientObj.nombres} ${selectedManualClientObj.apellidos} (C.I. ${selectedManualClientObj.cedula} - Tlf: ${selectedManualClientObj.telefono})`
+                      ) : (
+                        <span className="text-muted-foreground">-- Selecciona o busca un cliente --</span>
+                      )}
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isClientDropdownOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {/* Dropdown Popover */}
+                  {isClientDropdownOpen && (
+                    <div className="absolute z-50 left-0 right-0 mt-1.5 bg-zinc-950 border border-border rounded-xl shadow-2xl p-2.5 space-y-2 max-h-[300px] overflow-y-auto">
+                      {/* Search Input inside Dropdown */}
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Buscar por nombre, cédula o teléfono..."
+                          value={manualClientSearch}
+                          onChange={(e) => setManualClientSearch(e.target.value)}
+                          className="w-full bg-zinc-900 border border-border rounded-lg pl-8 pr-3 py-1.5 text-xs focus:border-primary focus:outline-none text-foreground"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+
+                      {/* Dropdown List */}
+                      <div className="space-y-1 max-h-[200px] overflow-y-auto divide-y divide-border/20">
+                        {filteredManualDropdownClients.length === 0 ? (
+                          <p className="p-3 text-center text-muted-foreground text-[11px]">No se encontraron clientes.</p>
+                        ) : (
+                          filteredManualDropdownClients.map((u: any, idx: number) => {
+                            const isSelected = u.telefono === manualClientSelected
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                  setManualClientSelected(u.telefono)
+                                  setManualClientSearch("")
+                                  setIsClientDropdownOpen(false)
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-colors flex flex-col gap-0.5 hover:bg-primary/10 hover:text-primary ${
+                                  isSelected ? "bg-primary/20 text-primary font-semibold" : "text-foreground"
+                                }`}
+                              >
+                                <span className="font-medium text-foreground">{u.nombres} {u.apellidos}</span>
+                                <span className="text-[10px] text-muted-foreground">C.I. {u.cedula} • Tlf: {u.telefono}</span>
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Show selected client mini-profile */}
