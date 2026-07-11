@@ -64,6 +64,16 @@ export async function POST(req: NextRequest) {
         },
       })
 
+      // Update G (Fechas de Pago / Fecha Pago)
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `'Carga manual'!G${rowIndex}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [[fechas]],
+        },
+      })
+
       // Update I (Referencia)
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,

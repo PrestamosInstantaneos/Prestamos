@@ -1060,7 +1060,7 @@ export default function AdminDashboard() {
 
   // Handle deleting a loan/request
   const handleDeleteLoan = async (loan: any) => {
-    const isManual = loan.source === "Carga manual"
+    const isManual = loan.isManual || false
     const displayName = isManual ? loan.solicitante : `${loan.nombres} ${loan.apellidos}`
     const confirmMessage = `¿Estás seguro de que deseas eliminar permanentemente el préstamo de "${displayName}" por un monto de "${loan.monto}"?\n\nEsta acción eliminará la fila de la hoja de cálculo de Google Sheets y no se puede deshacer.`
     
