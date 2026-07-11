@@ -148,6 +148,9 @@ export default function AdminDashboard() {
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const [editSuccess, setEditSuccess] = useState<string | null>(null)
+  const [convAmount, setConvAmount] = useState("")
+  const [convFrom, setConvFrom] = useState("USD")
+  const [convTo, setConvTo] = useState("VES")
 
   // Sub-states: WhatsApp Client Registration Form
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false)
@@ -1271,6 +1274,9 @@ export default function AdminDashboard() {
     
     setEditError(null)
     setEditSuccess(null)
+    setConvAmount("")
+    setConvFrom("USD")
+    setConvTo("VES")
     setIsEditLoanModalOpen(true)
   }
 
@@ -1323,6 +1329,9 @@ export default function AdminDashboard() {
       setTimeout(() => {
         setIsEditLoanModalOpen(false)
         setEditingLoan(null)
+        setConvAmount("")
+        setConvFrom("USD")
+        setConvTo("VES")
         setEditSuccess(null)
       }, 1500)
     } catch (err: any) {
@@ -3612,6 +3621,9 @@ export default function AdminDashboard() {
               onClick={() => {
                 setIsEditLoanModalOpen(false)
                 setEditingLoan(null)
+                setConvAmount("")
+                setConvFrom("USD")
+                setConvTo("VES")
                 setEditError(null)
                 setEditSuccess(null)
               }}
@@ -3659,6 +3671,86 @@ export default function AdminDashboard() {
                     required
                   />
                 </div>
+              </div>
+
+              {/* Convertidor de Moneda Integrado */}
+              <div className="bg-zinc-950/60 p-3 rounded-lg border border-border space-y-2.5">
+                <h4 className="font-bold text-primary text-[10px] uppercase tracking-wider flex items-center gap-1">
+                  💱 Convertidor de Monedas (Tasa BCV: Bs. {bcvRate.toLocaleString("es-VE", { minimumFractionDigits: 2 })})
+                </h4>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-muted-foreground">Monto:</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={convAmount}
+                      onChange={(e) => setConvAmount(e.target.value)}
+                      className="w-full bg-zinc-900 border border-border rounded px-2 py-1 text-[11px] font-mono focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-muted-foreground">De:</label>
+                    <select
+                      value={convFrom}
+                      onChange={(e) => setConvFrom(e.target.value)}
+                      className="w-full bg-zinc-900 border border-border rounded px-2 py-1 text-[11px] focus:border-primary focus:outline-none"
+                    >
+                      <option value="VES">Bolívares (VES)</option>
+                      <option value="USD">Dólares (USD)</option>
+                      <option value="EUR">Euros (EUR)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-muted-foreground">A:</label>
+                    <select
+                      value={convTo}
+                      onChange={(e) => setConvTo(e.target.value)}
+                      className="w-full bg-zinc-900 border border-border rounded px-2 py-1 text-[11px] focus:border-primary focus:outline-none"
+                    >
+                      <option value="VES">Bolívares (VES)</option>
+                      <option value="USD">Dólares (USD)</option>
+                      <option value="EUR">Euros (EUR)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {convAmount && parseFloat(convAmount) > 0 && (() => {
+                  const amount = parseFloat(convAmount) || 0
+                  let result = amount
+                  if (convFrom === "USD" && convTo === "VES") result = amount * bcvRate
+                  else if (convFrom === "VES" && convTo === "USD") result = amount / bcvRate
+                  else if (convFrom === "EUR" && convTo === "VES") result = amount * (bcvRate * 1.08)
+                  else if (convFrom === "VES" && convTo === "EUR") result = amount / (bcvRate * 1.08)
+                  else if (convFrom === "USD" && convTo === "EUR") result = amount / 1.08
+                  else if (convFrom === "EUR" && convTo === "USD") result = amount * 1.08
+
+                  return (
+                    <div className="flex items-center justify-between text-[11px] bg-zinc-900/50 p-2 rounded border border-border/40">
+                      <div>
+                        <span className="text-muted-foreground">Resultado: </span>
+                        <span className="font-bold text-emerald-400 font-mono">{result.toLocaleString("es-VE", { minimumFractionDigits: 2 })} {convTo}</span>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditMonto(result.toFixed(2))}
+                          className="bg-primary/20 hover:bg-primary/35 text-primary border border-primary/20 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase transition-colors"
+                        >
+                          Usar en Monto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditTotalPagar(result.toFixed(2))}
+                          className="bg-primary/20 hover:bg-primary/35 text-primary border border-primary/20 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase transition-colors"
+                        >
+                          Usar en Deuda
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
