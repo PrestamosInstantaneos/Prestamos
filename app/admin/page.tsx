@@ -45,6 +45,31 @@ function parseAmount(valStr: string): number {
   }
 }
 
+function parseAmountToVES(valStr: string, bcvRateOfLoan: number = 40.0): number {
+  if (!valStr) return 0
+  try {
+    const isUsd = valStr.includes("$")
+    const isEur = valStr.includes("€")
+    const clean = valStr
+      .replace(/Bs\./g, "")
+      .replace(/\$/g, "")
+      .replace(/€/g, "")
+      .replace(/[^0-9,.]/g, "")
+      .replace(/\s/g, "")
+    const cleanNumberString = clean.replace(/\./g, "").replace(/,/g, ".")
+    let num = parseFloat(cleanNumberString)
+    if (isNaN(num)) return 0
+    if (isUsd) {
+      num = num * bcvRateOfLoan
+    } else if (isEur) {
+      num = num * (bcvRateOfLoan * 1.08)
+    }
+    return num
+  } catch (e) {
+    return 0
+  }
+}
+
 // Fetcher for SWR
 const fetcher = async (url: string) => {
   const res = await fetch(url)
@@ -851,8 +876,9 @@ export default function AdminDashboard() {
 
     // Process web loans
     loans.forEach((l: any) => {
-      const base = parseAmount(l.monto)
-      const pay = parseAmount(l.totalPagar)
+      const rate = parseFloat(l.bcvRate?.toString().replace(/[^\d.,-]/g, "").replace(/\./g, "").replace(",", ".")) || bcvRate || 40.0
+      const base = parseAmountToVES(l.monto, rate)
+      const pay = parseAmountToVES(l.totalPagar, rate)
       const state = l.estado.toLowerCase()
       const isManual = l.timestamp.includes("/") || !l.timestamp.includes("T")
 
@@ -908,8 +934,8 @@ export default function AdminDashboard() {
 
     // Process manualLoans
     manualLoans.forEach((ml: any) => {
-      const base = parseAmount(ml.montoSolicitado)
-      const pay = parseAmount(ml.deuda)
+      const base = parseAmountToVES(ml.montoSolicitado, bcvRate)
+      const pay = parseAmountToVES(ml.deuda, bcvRate)
       const state = (ml.estado || "").toLowerCase()
 
       totalRequestedBs += base
