@@ -219,15 +219,15 @@ export default function AdminDashboard() {
   const [configError, setConfigError] = useState<string | null>(null)
 
   // Sub-states: Capital Base & Working Capital (USD)
-  const [capitalBase, setCapitalBase] = useState<number>(() => {
+  const [customCapitalBase, setCustomCapitalBase] = useState<number | null>(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("admin_capital_base")
-      return stored ? parseFloat(stored) || 1000 : 1000
+      return stored ? parseFloat(stored) : null
     }
-    return 1000
+    return null
   })
   const [isEditingCapital, setIsEditingCapital] = useState(false)
-  const [tempCapital, setTempCapital] = useState(capitalBase.toString())
+  const [tempCapital, setTempCapital] = useState("")
 
   // Sub-states: Payment Receipt Verification Modal with OCR
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
@@ -262,6 +262,63 @@ export default function AdminDashboard() {
   const users = data?.users || []
   const loans = data?.loans || []
   const manualLoans = data?.manualLoans || []
+
+  const calculatedCapitalBase = useMemo(() => {
+    let sumUsd = 0
+    const cleanNum = (str: any) => {
+      if (!str) return 0
+      return parseFloat(str.toString().replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0
+    }
+    const parseDateStr = (dStr: string) => {
+      if (!dStr) return null
+      const clean = dStr.replace(/[^\d/:-]/g, "").trim()
+      if (clean.includes("/") && clean.split("/").length >= 3) {
+        const pts = clean.split("/")
+        let year = parseInt(pts[2].split(" ")[0])
+        if (year < 100) year += 2000
+        if (year === 2025) year = 2026 // Normalizar
+        return new Date(year, parseInt(pts[1]) - 1, parseInt(pts[0]))
+      }
+      const parsed = Date.parse(clean)
+      if (isNaN(parsed)) return null
+      const date = new Date(parsed)
+      if (date.getFullYear() === 2025) date.setFullYear(2026)
+      return date
+    }
+
+    // Web loans (Solicitudes) from May 23 to May 31 (month = 4)
+    loans.forEach((l: any) => {
+      const date = parseDateStr(l.timestamp)
+      if (date && date.getMonth() === 4 && date.getDate() >= 23 && date.getDate() <= 31) {
+        const state = (l.estado || "").toLowerCase()
+        if (state === "pagado" || state === "pagando" || state === "aprobado" || state === "por pagar" || state === "pendiente por pagar") {
+          const rate = parseFloat(l.bcvRate?.toString().replace(/[^\d.,-]/g, "").replace(/\./g, "").replace(",", ".")) || bcvRate || 40.0
+          const base = parseAmountToVES(l.monto, rate)
+          sumUsd += base / rate
+        }
+      }
+    })
+
+    // Manual loans (Carga manual) from May 23 to May 31 (month = 4)
+    manualLoans.forEach((ml: any) => {
+      const date = parseDateStr(ml.fechaSolicitud)
+      if (date && date.getMonth() === 4 && date.getDate() >= 23 && date.getDate() <= 31) {
+        const state = (ml.estado || "").toLowerCase()
+        if (state === "pagado" || state === "pagando" || state === "aprobado" || state === "por pagar" || state === "pendiente por pagar") {
+          const base = parseAmountToVES(ml.montoSolicitado, bcvRate)
+          sumUsd += base / bcvRate
+        }
+      }
+    })
+
+    return sumUsd > 0 ? sumUsd : 1000.0
+  }, [loans, manualLoans, bcvRate])
+
+  const capitalBase = customCapitalBase !== null ? customCapitalBase : calculatedCapitalBase
+
+  useEffect(() => {
+    setTempCapital(capitalBase.toString())
+  }, [capitalBase])
 
   // Memo para agrupar y analizar solicitantes de la Carga Manual
   const uniqueManualApplicants = useMemo(() => {
@@ -476,10 +533,14 @@ export default function AdminDashboard() {
         const pts = clean.split("/")
         let year = parseInt(pts[2].split(" ")[0])
         if (year < 100) year += 2000
+        if (year === 2025) year = 2026 // Normalizar
         return new Date(year, parseInt(pts[1]) - 1, parseInt(pts[0]))
       }
       const parsed = Date.parse(clean)
-      return isNaN(parsed) ? null : new Date(parsed)
+      if (isNaN(parsed)) return null
+      const date = new Date(parsed)
+      if (date.getFullYear() === 2025) date.setFullYear(2026)
+      return date
     }
 
     // Procesar préstamos web cobrados
@@ -517,15 +578,7 @@ export default function AdminDashboard() {
     // Ordenar cronológicamente
     paidList.sort((a, b) => a.date.getTime() - b.date.getTime())
 
-    // Iniciar desde la primera fecha de cobro ajustada a quincena
-    const startDate = new Date(paidList[0].date)
-    if (startDate.getDate() <= 15) {
-      startDate.setDate(1)
-    } else {
-      startDate.setDate(16)
-    }
-    startDate.setHours(0, 0, 0, 0)
-
+    // Ciclos de inversión quincenales personalizados
     const today = new Date()
     const cycles: {
       name: string
@@ -537,8 +590,33 @@ export default function AdminDashboard() {
       growthPct: number
     }[] = []
 
-    let currentStart = new Date(startDate)
+    // Primer Ciclo Especial: 23 de Mayo de 2026 al 31 de Mayo de 2026
+    const initialStart = new Date(2026, 4, 23, 0, 0, 0, 0)
+    const initialEnd = new Date(2026, 4, 31, 23, 59, 59, 999)
+
     let currentCapital = capitalBase
+
+    // Filtrar cobros del ciclo inicial
+    const cyclePaid1 = paidList.filter(
+      (p) => p.date.getTime() >= initialStart.getTime() && p.date.getTime() <= initialEnd.getTime()
+    )
+    const earnings1 = cyclePaid1.reduce((acc, p) => acc + p.interestUsd, 0)
+    const endCapital1 = currentCapital + earnings1
+    const growthPct1 = currentCapital > 0 ? (earnings1 / currentCapital) * 100 : 0
+
+    cycles.push({
+      name: "Ciclo Inicial (23 al 31 de Mayo)",
+      startDate: new Date(initialStart),
+      endDate: new Date(initialEnd),
+      startCapital: currentCapital,
+      earnings: earnings1,
+      endCapital: endCapital1,
+      growthPct: growthPct1,
+    })
+
+    currentCapital = endCapital1
+    // Próximo ciclo empieza el 1 de Junio de 2026
+    let currentStart = new Date(2026, 5, 1, 0, 0, 0, 0)
 
     while (currentStart.getTime() <= today.getTime()) {
       let currentEnd = new Date(currentStart)
@@ -549,6 +627,10 @@ export default function AdminDashboard() {
         currentEnd.setDate(0)
       }
       currentEnd.setHours(23, 59, 59, 999)
+
+      if (currentStart.getTime() > today.getTime()) {
+        break
+      }
 
       // Cobros acumulados en esta quincena
       const cyclePaid = paidList.filter(
@@ -1791,7 +1873,7 @@ export default function AdminDashboard() {
                   </div>
                 )}
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  El capital base inicial invertido en la plataforma para el financiamiento de préstamos.
+                  El capital base inicial. Por defecto, se calcula sumando todos los préstamos del 23 al 31 de Mayo.
                 </p>
               </div>
 
