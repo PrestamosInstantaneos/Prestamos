@@ -286,6 +286,24 @@ export default function AdminDashboard() {
       return date
     }
 
+    const getHistoricalRateLocal = (date: Date) => {
+      const dateStr = date.toISOString().split("T")[0]
+      const match = bcvHistory.find((h: any) => h.fecha === dateStr)
+      if (match) return parseFloat(match.tasa) || bcvRate || 40.0
+      
+      let closest = null
+      let minDiff = Infinity
+      bcvHistory.forEach((h: any) => {
+        const hDate = new Date(h.fecha)
+        const diff = Math.abs(date.getTime() - hDate.getTime())
+        if (diff < minDiff) {
+          minDiff = diff
+          closest = parseFloat(h.tasa)
+        }
+      })
+      return closest || bcvRate || 40.0
+    }
+
     // Web loans (Solicitudes) from May 23 to May 31 (month = 4)
     loans.forEach((l: any) => {
       const date = parseDateStr(l.timestamp)
@@ -305,14 +323,15 @@ export default function AdminDashboard() {
       if (date && date.getMonth() === 4 && date.getDate() >= 23 && date.getDate() <= 31) {
         const state = (ml.estado || "").toLowerCase()
         if (state === "pagado" || state === "pagando" || state === "aprobado" || state === "por pagar" || state === "pendiente por pagar") {
-          const base = parseAmountToVES(ml.montoSolicitado, bcvRate)
-          sumUsd += base / bcvRate
+          const rate = getHistoricalRateLocal(date)
+          const base = parseAmountToVES(ml.montoSolicitado, rate)
+          sumUsd += base / rate
         }
       }
     })
 
     return sumUsd > 0 ? sumUsd : 1000.0
-  }, [loans, manualLoans, bcvRate])
+  }, [loans, manualLoans, bcvRate, bcvHistory])
 
   const capitalBase = customCapitalBase !== null ? customCapitalBase : calculatedCapitalBase
 
@@ -936,6 +955,24 @@ export default function AdminDashboard() {
     const paidLoans = loans.filter((l: any) => l.estado.toLowerCase() === "pagado")
     const rejectedLoans = loans.filter((l: any) => l.estado.toLowerCase() === "rechazado")
 
+    const getHistoricalRateLocal = (date: Date) => {
+      const dateStr = date.toISOString().split("T")[0]
+      const match = bcvHistory.find((h: any) => h.fecha === dateStr)
+      if (match) return parseFloat(match.tasa) || bcvRate || 40.0
+      
+      let closest = null
+      let minDiff = Infinity
+      bcvHistory.forEach((h: any) => {
+        const hDate = new Date(h.fecha)
+        const diff = Math.abs(date.getTime() - hDate.getTime())
+        if (diff < minDiff) {
+          minDiff = diff
+          closest = parseFloat(h.tasa)
+        }
+      })
+      return closest || bcvRate || 40.0
+    }
+
     // Calculations of volumes and earnings
     let totalRequestedBs = 0
     let totalApprovedBs = 0
@@ -1016,8 +1053,28 @@ export default function AdminDashboard() {
 
     // Process manualLoans
     manualLoans.forEach((ml: any) => {
-      const base = parseAmountToVES(ml.montoSolicitado, bcvRate)
-      const pay = parseAmountToVES(ml.deuda, bcvRate)
+      let dateObj = new Date()
+      const dateStr = ml.fechaPago || ml.fechaSolicitud
+      if (dateStr) {
+        const clean = dateStr.replace(/[^\d/:-]/g, "").trim()
+        if (clean.includes("/") && clean.split("/").length >= 3) {
+          const pts = clean.split("/")
+          let yr = parseInt(pts[2].split(" ")[0])
+          if (yr < 100) yr += 2000
+          if (yr === 2025) yr = 2026 // normalizar
+          dateObj = new Date(yr, parseInt(pts[1]) - 1, parseInt(pts[0]))
+        } else {
+          const parsed = Date.parse(clean)
+          if (!isNaN(parsed)) {
+            dateObj = new Date(parsed)
+            if (dateObj.getFullYear() === 2025) dateObj.setFullYear(2026)
+          }
+        }
+      }
+
+      const rate = getHistoricalRateLocal(dateObj)
+      const base = parseAmountToVES(ml.montoSolicitado, rate)
+      const pay = parseAmountToVES(ml.deuda, rate)
       const state = (ml.estado || "").toLowerCase()
 
       totalRequestedBs += base
@@ -1034,20 +1091,6 @@ export default function AdminDashboard() {
         manualInterestBs += interest
 
         // Grouping by month
-        let dateObj = new Date()
-        const dateStr = ml.fechaPago || ml.fechaSolicitud
-        if (dateStr) {
-          const clean = dateStr.replace(/[^\d/:-]/g, "").trim()
-          if (clean.includes("/") && clean.split("/").length >= 3) {
-            const pts = clean.split("/")
-            let yr = parseInt(pts[2].split(" ")[0])
-            if (yr < 100) yr += 2000
-            dateObj = new Date(yr, parseInt(pts[1]) - 1, parseInt(pts[0]))
-          } else {
-            const parsed = Date.parse(clean)
-            if (!isNaN(parsed)) dateObj = new Date(parsed)
-          }
-        }
         const monthLabel = dateObj.toLocaleString("es-VE", { month: "short", year: "2-digit" })
         monthlyEarningsMap[monthLabel] = (monthlyEarningsMap[monthLabel] || 0) + (interest / bcvRate)
       }
@@ -1106,7 +1149,7 @@ export default function AdminDashboard() {
       // Monthly earnings
       monthlyEarnings,
     }
-  }, [users, loans, manualLoans, bcvRate])
+  }, [users, loans, manualLoans, bcvRate, bcvHistory])
 
   // Handle loan status updates
   const handleUpdateLoanStatus = async (loan: any, newStatus: string) => {
