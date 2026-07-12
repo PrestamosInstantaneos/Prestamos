@@ -111,12 +111,38 @@ export async function GET(req: NextRequest) {
 
     // 5. Análisis y Proyecciones
     // Re-leer para asegurar que tenemos los datos frescos
-    const finalHistory = historyData.map((row) => ({
-      fecha: row[0] || "",
-      tasa: parseFloat(row[1]) || 0,
-      variacionBs: parseFloat(row[2]) || 0,
-      variacionPct: row[3] || "0.00%",
-    }))
+    const finalHistory = historyData.map((row) => {
+      const rawTasa = row[1] || ""
+      let tasa = 0
+      if (rawTasa.includes(",")) {
+        tasa = parseFloat(rawTasa.replace(/\./g, "").replace(/,/g, ".")) || 0
+      } else if (rawTasa.includes(".")) {
+        const parts = rawTasa.split(".")
+        if (parts.length > 2) {
+          tasa = parseFloat(rawTasa.replace(/\./g, "")) || 0
+          if (tasa > 100000) tasa = tasa / 10000
+        } else {
+          tasa = parseFloat(rawTasa) || 0
+        }
+      } else {
+        tasa = parseFloat(rawTasa) || 0
+      }
+
+      const rawVar = row[2] || ""
+      let variacionBs = 0
+      if (rawVar.includes(",")) {
+        variacionBs = parseFloat(rawVar.replace(/\./g, "").replace(/,/g, ".")) || 0
+      } else {
+        variacionBs = parseFloat(rawVar) || 0
+      }
+
+      return {
+        fecha: row[0] || "",
+        tasa,
+        variacionBs,
+        variacionPct: row[3] || "0.00%",
+      }
+    })
 
     let totalDiffBs = 0
     let totalDiffPct = 0
