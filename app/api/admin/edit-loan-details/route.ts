@@ -26,11 +26,22 @@ export async function POST(req: NextRequest) {
       totalPagar,
       modalidad,
       fechas,
+      fechaPago,
       referencia,
       estado,
       monedaMonto,
       monedaDeuda
     } = await req.json()
+
+    let formattedPaymentDate = ""
+    if (fechaPago) {
+      const parts = fechaPago.split("-")
+      if (parts.length === 3) {
+        formattedPaymentDate = `${parts[2]}/${parts[1]}/${parts[0]}`
+      } else {
+        formattedPaymentDate = fechaPago
+      }
+    }
 
     const { sheets, sheetId } = getSheetsClient()
 
@@ -64,13 +75,23 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      // Update G (Fechas de Pago / Fecha Pago)
+      // Update E (Fecha de solicitud)
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `'Carga manual'!E${rowIndex}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [[fechas]],
+        },
+      })
+
+      // Update G (Fecha de pago)
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
         range: `'Carga manual'!G${rowIndex}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-          values: [[fechas]],
+          values: [[formattedPaymentDate]],
         },
       })
 
@@ -92,7 +113,7 @@ export async function POST(req: NextRequest) {
       // Buscar el préstamo por timestamp y cédula
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: "'Solicitudes'!A:N",
+        range: "'Solicitudes'!A:P",
       })
 
       const rows = response.data.values || []
@@ -145,6 +166,25 @@ export async function POST(req: NextRequest) {
           values: [[estado, referencia]],
         },
       })
+
+      // Update O (Nota de Pago) if status is Pagado
+      const row = rows[rowIndexToUpdate - 1]
+      const existingNote = row[14] || ""
+      let targetNota = existingNote
+      if (estado.toLowerCase() === "pagado" && formattedPaymentDate && !existingNote.includes("Pagado:")) {
+        const payNote = `Pagado: ${formattedPaymentDate}`
+        targetNota = existingNote ? `${existingNote} | ${payNote}` : payNote
+      }
+      if (targetNota !== existingNote) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: sheetId,
+          range: `'Solicitudes'!O${rowIndexToUpdate}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[targetNota]],
+          },
+        })
+      }
     }
 
     return NextResponse.json({ success: true, message: "Préstamo editado exitosamente." })

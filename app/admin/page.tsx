@@ -207,6 +207,7 @@ export default function AdminDashboard() {
   const [editTotalPagar, setEditTotalPagar] = useState("")
   const [editModalidad, setEditModalidad] = useState("Pago Total")
   const [editFechas, setEditFechas] = useState("")
+  const [editFechaPago, setEditFechaPago] = useState("")
   const [editReferencia, setEditReferencia] = useState("")
   const [editEstado, setEditEstado] = useState("Aprobado")
   const [editMonedaMonto, setEditMonedaMonto] = useState("Bs.")
@@ -276,6 +277,7 @@ export default function AdminDashboard() {
   const [skipComprobante, setSkipComprobante] = useState(false)
   const [paymentMoneda, setPaymentMoneda] = useState("Bs.")
   const [paymentNota, setPaymentNota] = useState("")
+  const [paymentFecha, setPaymentFecha] = useState("")
   const [isAbono, setIsAbono] = useState(false)
   const [paymentMontoAbono, setPaymentMontoAbono] = useState("")
   const [paymentOcrScanning, setPaymentOcrScanning] = useState(false)
@@ -1017,6 +1019,7 @@ export default function AdminDashboard() {
     let totalApprovedBs = 0
     let totalPaidBs = 0
     let totalInterestBs = 0 // totalPagar - monto (only for approved/paid)
+    let activePortfolioBs = 0
 
     // Classified by Source: Web vs Manual (Admin)
     let webRequestedBs = 0
@@ -1048,6 +1051,10 @@ export default function AdminDashboard() {
       }
 
       const isApprovedOrPaid = state === "aprobado" || state === "por pagar" || state === "pendiente por pagar" || state === "pagado"
+      const isActive = state === "aprobado" || state === "por pagar" || state === "pendiente por pagar" || state === "pagando"
+      if (isActive) {
+        activePortfolioBs += pay
+      }
 
       if (isApprovedOrPaid) {
         totalApprovedBs += base
@@ -1120,6 +1127,10 @@ export default function AdminDashboard() {
       manualRequestedBs += base
 
       const isApprovedOrPaid = state === "aprobado" || state === "por pagar" || state === "pendiente por pagar" || state === "pagado" || state === "pagando"
+      const isActive = state === "aprobado" || state === "por pagar" || state === "pendiente por pagar" || state === "pagando"
+      if (isActive) {
+        activePortfolioBs += pay
+      }
 
       if (isApprovedOrPaid) {
         totalApprovedBs += base
@@ -1172,10 +1183,12 @@ export default function AdminDashboard() {
       totalApprovedBs,
       totalPaidBs,
       totalInterestBs,
+      activePortfolioBs,
       totalRequestedUsd: totalRequestedBs / bcvRate,
       totalApprovedUsd: totalApprovedBs / bcvRate,
       totalPaidUsd: totalPaidBs / bcvRate,
       totalInterestUsd: totalInterestBs / bcvRate,
+      activePortfolioUsd: activePortfolioBs / bcvRate,
       // Source classified
       webRequestedUsd: webRequestedBs / bcvRate,
       webApprovedUsd: webApprovedBs / bcvRate,
@@ -1337,6 +1350,14 @@ export default function AdminDashboard() {
     setSelectedPaymentLoan(loan)
     setPaymentReferencia(loan.referencia || "")
     setPaymentComprobanteBase64("")
+    
+    // Initialize date to today
+    const today = new Date()
+    const yyyy = today.getFullYear()
+    const mm = String(today.getMonth() + 1).padStart(2, "0")
+    const dd = String(today.getDate()).padStart(2, "0")
+    setPaymentFecha(`${yyyy}-${mm}-${dd}`)
+
     setPaymentError(null)
     setPaymentSuccess(null)
     setIsPaymentModalOpen(true)
@@ -1447,7 +1468,8 @@ export default function AdminDashboard() {
           monedaPago: paymentMoneda,
           notaPago: paymentNota,
           isAbono: isAbono,
-          montoAbono: paymentMontoAbono
+          montoAbono: paymentMontoAbono,
+          fechaPago: paymentFecha
         }),
       })
 
@@ -1495,6 +1517,44 @@ export default function AdminDashboard() {
     setEditEstado(l.estado || "Aprobado")
     setEditMonedaMonto(symbolMonto)
     setEditMonedaDeuda(symbolDeuda)
+
+    // Detect and format payment date
+    let rawFechaPago = ""
+    if (l.isManual) {
+      const rawManual = manualLoans.find((m: any) => m.rowIndex === l.rowIndex)
+      rawFechaPago = rawManual?.fechaPago || ""
+    } else {
+      if (l.notaPago && l.notaPago.includes("Pagado:")) {
+        const match = l.notaPago.match(/Pagado:\s*([\d/]+)/)
+        if (match) {
+          rawFechaPago = match[1]
+        }
+      }
+    }
+
+    let dateInputVal = ""
+    if (rawFechaPago && rawFechaPago.includes("/")) {
+      const pts = rawFechaPago.split("/")
+      if (pts.length === 3) {
+        const day = pts[0].padStart(2, "0")
+        const month = pts[1].padStart(2, "0")
+        let year = pts[2].trim()
+        if (year.length === 2) year = `20${year}`
+        dateInputVal = `${year}-${month}-${day}`
+      }
+    } else if (rawFechaPago) {
+      dateInputVal = rawFechaPago
+    }
+
+    if (!dateInputVal && (l.estado || "").toLowerCase() === "pagado") {
+      const today = new Date()
+      const yyyy = today.getFullYear()
+      const mm = String(today.getMonth() + 1).padStart(2, "0")
+      const dd = String(today.getDate()).padStart(2, "0")
+      dateInputVal = `${yyyy}-${mm}-${dd}`
+    }
+
+    setEditFechaPago(dateInputVal)
     
     setEditError(null)
     setEditSuccess(null)
@@ -1537,6 +1597,7 @@ export default function AdminDashboard() {
           totalPagar: parseFloat(editTotalPagar),
           modalidad: editModalidad,
           fechas: editFechas,
+          fechaPago: editFechaPago,
           referencia: editReferencia,
           estado: editEstado,
           monedaMonto: editMonedaMonto,
@@ -3834,6 +3895,88 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-1.5">
+                  <label className="text-muted-foreground font-semibold">Fecha del Pago Efectivo:</label>
+                  <input
+                    type="date"
+                    value={paymentFecha}
+                    onChange={(e) => setPaymentFecha(e.target.value)}
+                    className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                    required
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const today = new Date()
+                        const yyyy = today.getFullYear()
+                        const mm = String(today.getMonth() + 1).padStart(2, "0")
+                        const dd = String(today.getDate()).padStart(2, "0")
+                        setPaymentFecha(`${yyyy}-${mm}-${dd}`)
+                      }}
+                      className="bg-secondary/40 hover:bg-secondary border border-border text-[9px] px-2 py-0.5 rounded transition-all"
+                    >
+                      Hoy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const date = new Date()
+                        date.setDate(date.getDate() - 1)
+                        const yyyy = date.getFullYear()
+                        const mm = String(date.getMonth() + 1).padStart(2, "0")
+                        const dd = String(date.getDate()).padStart(2, "0")
+                        setPaymentFecha(`${yyyy}-${mm}-${dd}`)
+                      }}
+                      className="bg-secondary/40 hover:bg-secondary border border-border text-[9px] px-2 py-0.5 rounded transition-all"
+                    >
+                      Ayer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const date = new Date()
+                        date.setDate(date.getDate() - 15)
+                        const yyyy = date.getFullYear()
+                        const mm = String(date.getMonth() + 1).padStart(2, "0")
+                        const dd = String(date.getDate()).padStart(2, "0")
+                        setPaymentFecha(`${yyyy}-${mm}-${dd}`)
+                      }}
+                      className="bg-secondary/40 hover:bg-secondary border border-border text-[9px] px-2 py-0.5 rounded transition-all"
+                    >
+                      Hace 15 días
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const date = new Date()
+                        date.setMonth(date.getMonth() - 1)
+                        const yyyy = date.getFullYear()
+                        const mm = String(date.getMonth() + 1).padStart(2, "0")
+                        const dd = String(date.getDate()).padStart(2, "0")
+                        setPaymentFecha(`${yyyy}-${mm}-${dd}`)
+                      }}
+                      className="bg-secondary/40 hover:bg-secondary border border-border text-[9px] px-2 py-0.5 rounded transition-all"
+                    >
+                      Hace 1 mes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const date = new Date()
+                        date.setMonth(date.getMonth() - 2)
+                        const yyyy = date.getFullYear()
+                        const mm = String(date.getMonth() + 1).padStart(2, "0")
+                        const dd = String(date.getDate()).padStart(2, "0")
+                        setPaymentFecha(`${yyyy}-${mm}-${dd}`)
+                      }}
+                      className="bg-secondary/40 hover:bg-secondary border border-border text-[9px] px-2 py-0.5 rounded transition-all"
+                    >
+                      Hace 2 meses
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
                   <label className="text-muted-foreground font-semibold">Nota o Comentario del Pago (Opcional):</label>
                   <textarea
                     rows={2}
@@ -4063,6 +4206,87 @@ export default function AdminDashboard() {
                   className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none"
                   required
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground font-semibold">Fecha de Pago Efectivo (Completado/Abono):</label>
+                <input
+                  type="date"
+                  value={editFechaPago}
+                  onChange={(e) => setEditFechaPago(e.target.value)}
+                  className="w-full bg-zinc-950 border border-border rounded-lg px-3 py-2 text-xs focus:border-primary focus:outline-none font-mono"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const today = new Date()
+                      const yyyy = today.getFullYear()
+                      const mm = String(today.getMonth() + 1).padStart(2, "0")
+                      const dd = String(today.getDate()).padStart(2, "0")
+                      setEditFechaPago(`${yyyy}-${mm}-${dd}`)
+                    }}
+                    className="bg-secondary/40 hover:bg-secondary border border-border text-[9px] px-2 py-0.5 rounded transition-all"
+                  >
+                    Hoy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const date = new Date()
+                      date.setDate(date.getDate() - 1)
+                      const yyyy = date.getFullYear()
+                      const mm = String(date.getMonth() + 1).padStart(2, "0")
+                      const dd = String(date.getDate()).padStart(2, "0")
+                      setEditFechaPago(`${yyyy}-${mm}-${dd}`)
+                    }}
+                    className="bg-secondary/40 hover:bg-secondary border border-border text-[9px] px-2 py-0.5 rounded transition-all"
+                  >
+                    Ayer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const date = new Date()
+                      date.setDate(date.getDate() - 15)
+                      const yyyy = date.getFullYear()
+                      const mm = String(date.getMonth() + 1).padStart(2, "0")
+                      const dd = String(date.getDate()).padStart(2, "0")
+                      setEditFechaPago(`${yyyy}-${mm}-${dd}`)
+                    }}
+                    className="bg-secondary/40 hover:bg-secondary border border-border text-[9px] px-2 py-0.5 rounded transition-all"
+                  >
+                    Hace 15 días
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const date = new Date()
+                      date.setMonth(date.getMonth() - 1)
+                      const yyyy = date.getFullYear()
+                      const mm = String(date.getMonth() + 1).padStart(2, "0")
+                      const dd = String(date.getDate()).padStart(2, "0")
+                      setEditFechaPago(`${yyyy}-${mm}-${dd}`)
+                    }}
+                    className="bg-secondary/40 hover:bg-secondary border border-border text-[9px] px-2 py-0.5 rounded transition-all"
+                  >
+                    Hace 1 mes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const date = new Date()
+                      date.setMonth(date.getMonth() - 2)
+                      const yyyy = date.getFullYear()
+                      const mm = String(date.getMonth() + 1).padStart(2, "0")
+                      const dd = String(date.getDate()).padStart(2, "0")
+                      setEditFechaPago(`${yyyy}-${mm}-${dd}`)
+                    }}
+                    className="bg-secondary/40 hover:bg-secondary border border-border text-[9px] px-2 py-0.5 rounded transition-all"
+                  >
+                    Hace 2 meses
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-1.5">

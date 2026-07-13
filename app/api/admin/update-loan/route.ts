@@ -60,9 +60,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "No autorizado. Acceso denegado." }, { status: 403 })
     }
 
-    const { timestamp, cedula, estado, referencia, comprobanteBase64, isManual, rowIndex, notaPago, monedaPago, isAbono, montoAbono } = await req.json()
+    const { timestamp, cedula, estado, referencia, comprobanteBase64, isManual, rowIndex, notaPago, monedaPago, isAbono, montoAbono, fechaPago } = await req.json()
     if (!estado) {
       return NextResponse.json({ message: "Falta el campo obligatorio (estado)." }, { status: 400 })
+    }
+
+    let formattedPaymentDate = ""
+    if (fechaPago) {
+      const parts = fechaPago.split("-")
+      if (parts.length === 3) {
+        formattedPaymentDate = `${parts[2]}/${parts[1]}/${parts[0]}`
+      } else {
+        formattedPaymentDate = fechaPago
+      }
+    } else {
+      const todayParts = new Date().toLocaleDateString("es-VE").split("/")
+      formattedPaymentDate = `${todayParts[0]}/${todayParts[1]}/${todayParts[2]}`
     }
 
     const { sheets, sheetId } = getSheetsClient()
@@ -305,7 +318,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Construct historical abono note
-      const abonoNote = `Abono: ${targetMoneda} ${parsedAbono} (Ref: ${targetRef || "S/R"})`
+      const abonoNote = `Abono: ${targetMoneda} ${parsedAbono} (Ref: ${targetRef || "S/R"} - Fecha: ${formattedPaymentDate})`
       const existingNote = loanInfo.notaExistente || ""
       targetNota = existingNote ? `${existingNote} | ${abonoNote}` : abonoNote
 
@@ -316,6 +329,12 @@ export async function POST(req: NextRequest) {
         targetEstado = isManual ? "Aprobado" : (estado || "Aprobado")
         isFullyPaid = false
       }
+    }
+
+    if (isFullyPaid && !isAbono) {
+      const payNote = `Pagado: ${targetMoneda} ${parseCurrencyValue(loanInfo.totalPagar)} (Ref: ${targetRef || "S/R"} - Fecha: ${formattedPaymentDate})`
+      const existingNote = loanInfo.notaExistente || ""
+      targetNota = existingNote ? `${existingNote} | ${payNote}` : payNote
     }
 
     if (isManual) {
@@ -331,14 +350,12 @@ export async function POST(req: NextRequest) {
       })
 
       if (capitalizedEstado.toLowerCase() === "pagado" || isFullyPaid) {
-        const todayParts = new Date().toLocaleDateString("es-VE").split("/")
-        const todayStr = `${todayParts[0]}/${todayParts[1]}/${todayParts[2]}`
         await sheets.spreadsheets.values.update({
           spreadsheetId: sheetId,
           range: `'Carga manual'!G${rowIndex}`,
           valueInputOption: "USER_ENTERED",
           requestBody: {
-            values: [[todayStr]],
+            values: [[formattedPaymentDate]],
           },
         })
       }
