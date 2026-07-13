@@ -70,6 +70,45 @@ function parseAmountToVES(valStr: string, bcvRateOfLoan: number = 40.0): number 
   }
 }
 
+function parseAmountToFloat(valStr: string): number {
+  if (!valStr) return 0
+  try {
+    const clean = valStr
+      .replace(/Bs\./g, "")
+      .replace(/\$/g, "")
+      .replace(/€/g, "")
+      .replace(/[a-zA-Z]/g, "")
+      .replace(/\s/g, "")
+      .replace(/^\.+/, "")
+      .trim()
+    if (!clean) return 0
+    if (clean.includes(".") && clean.includes(",")) {
+      if (clean.indexOf(".") < clean.indexOf(",")) {
+        return parseFloat(clean.replace(/\./g, "").replace(",", ".")) || 0
+      } else {
+        return parseFloat(clean.replace(/,/g, "")) || 0
+      }
+    } else if (clean.includes(",")) {
+      const parts = clean.split(",")
+      if (parts[parts.length - 1].length === 3) {
+        return parseFloat(clean.replace(/,/g, "")) || 0
+      } else {
+        return parseFloat(clean.replace(",", ".")) || 0
+      }
+    } else if (clean.includes(".")) {
+      const parts = clean.split(".")
+      if (parts.length > 2 || parts[parts.length - 1].length === 3) {
+        return parseFloat(clean.replace(/\./g, "")) || 0
+      } else {
+        return parseFloat(clean) || 0
+      }
+    }
+    return parseFloat(clean) || 0
+  } catch (e) {
+    return 0
+  }
+}
+
 // Fetcher for SWR
 const fetcher = async (url: string) => {
   const res = await fetch(url)
@@ -1382,23 +1421,7 @@ export default function AdminDashboard() {
         return
       }
       
-      const cleanStr = selectedPaymentLoan.totalPagar.toString().replace(/[^\d.,-]/g, "")
-      let currentDebt = parseFloat(cleanStr) || 0
-      if (cleanStr.includes(".") && cleanStr.includes(",")) {
-        if (cleanStr.indexOf(".") < cleanStr.indexOf(",")) {
-          currentDebt = parseFloat(cleanStr.replace(/\./g, "").replace(",", ".")) || 0
-        } else {
-          currentDebt = parseFloat(cleanStr.replace(/,/g, "")) || 0
-        }
-      } else if (cleanStr.includes(",")) {
-        const parts = cleanStr.split(",")
-        if (parts[parts.length - 1].length === 3) {
-          currentDebt = parseFloat(cleanStr.replace(/,/g, "")) || 0
-        } else {
-          currentDebt = parseFloat(cleanStr.replace(",", ".")) || 0
-        }
-      }
-      
+      const currentDebt = parseAmountToFloat(selectedPaymentLoan.totalPagar)
       if (parseFloat(paymentMontoAbono) > currentDebt) {
         setPaymentError(`El abono no puede superar la deuda actual (${currentDebt.toLocaleString("es-VE", { minimumFractionDigits: 2 })}).`)
         return
@@ -1450,8 +1473,8 @@ export default function AdminDashboard() {
     setEditingLoan(l)
     
     // Clean currency symbols from amount/debt before setting them
-    const cleanMonto = l.monto ? l.monto.toString().replace(/[^\d.,-]/g, "") : ""
-    const cleanTotalPagar = l.totalPagar ? l.totalPagar.toString().replace(/[^\d.,-]/g, "") : ""
+    const cleanMonto = l.monto ? l.monto.toString().replace(/[^\d.,-]/g, "").replace(/^\.+/, "") : ""
+    const cleanTotalPagar = l.totalPagar ? l.totalPagar.toString().replace(/[^\d.,-]/g, "").replace(/^\.+/, "") : ""
     
     // Detect currency symbols independently
     const amtStr = l.monto ? l.monto.toString() : ""
@@ -3736,22 +3759,7 @@ export default function AdminDashboard() {
                   />
                   {/* Estimación de la deuda restante */}
                   {paymentMontoAbono && parseFloat(paymentMontoAbono) > 0 && (() => {
-                    const cleanDebtStr = selectedPaymentLoan.totalPagar.toString().replace(/[^\d.,-]/g, "")
-                    let currentDebt = parseFloat(cleanDebtStr) || 0
-                    if (cleanDebtStr.includes(".") && cleanDebtStr.includes(",")) {
-                      if (cleanDebtStr.indexOf(".") < cleanDebtStr.indexOf(",")) {
-                        currentDebt = parseFloat(cleanDebtStr.replace(/\./g, "").replace(",", ".")) || 0
-                      } else {
-                        currentDebt = parseFloat(cleanDebtStr.replace(/,/g, "")) || 0
-                      }
-                    } else if (cleanDebtStr.includes(",")) {
-                      const parts = cleanDebtStr.split(",")
-                      if (parts[parts.length - 1].length === 3) {
-                        currentDebt = parseFloat(cleanDebtStr.replace(/,/g, "")) || 0
-                      } else {
-                        currentDebt = parseFloat(cleanDebtStr.replace(",", ".")) || 0
-                      }
-                    }
+                    const currentDebt = parseAmountToFloat(selectedPaymentLoan.totalPagar)
                     const diff = Math.max(0, currentDebt - parseFloat(paymentMontoAbono))
                     return (
                       <p className="text-[10px] text-amber-400 font-medium">

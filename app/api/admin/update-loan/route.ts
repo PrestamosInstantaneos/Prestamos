@@ -7,24 +7,42 @@ import { Readable } from "stream"
 const parseCurrencyValue = (val: any): number => {
   if (typeof val === "number") return val
   if (!val) return 0
-  const s = val.toString().trim()
-  const cleaned = s.replace(/[^\d.,-]/g, "")
-  if (cleaned.includes(".") && cleaned.includes(",")) {
-    if (cleaned.indexOf(".") < cleaned.indexOf(",")) {
-      return parseFloat(cleaned.replace(/\./g, "").replace(",", ".")) || 0
-    } else {
-      return parseFloat(cleaned.replace(/,/g, "")) || 0
+  try {
+    const clean = val
+      .toString()
+      .replace(/Bs\./g, "")
+      .replace(/\$/g, "")
+      .replace(/€/g, "")
+      .replace(/[a-zA-Z]/g, "")
+      .replace(/\s/g, "")
+      .replace(/^\.+/, "")
+      .trim()
+    if (!clean) return 0
+    if (clean.includes(".") && clean.includes(",")) {
+      if (clean.indexOf(".") < clean.indexOf(",")) {
+        return parseFloat(clean.replace(/\./g, "").replace(",", ".")) || 0
+      } else {
+        return parseFloat(clean.replace(/,/g, "")) || 0
+      }
+    } else if (clean.includes(",")) {
+      const parts = clean.split(",")
+      if (parts[parts.length - 1].length === 3) {
+        return parseFloat(clean.replace(/,/g, "")) || 0
+      } else {
+        return parseFloat(clean.replace(",", ".")) || 0
+      }
+    } else if (clean.includes(".")) {
+      const parts = clean.split(".")
+      if (parts.length > 2 || parts[parts.length - 1].length === 3) {
+        return parseFloat(clean.replace(/\./g, "")) || 0
+      } else {
+        return parseFloat(clean) || 0
+      }
     }
+    return parseFloat(clean) || 0
+  } catch (e) {
+    return 0
   }
-  if (cleaned.includes(",")) {
-    const parts = cleaned.split(",")
-    if (parts[parts.length - 1].length === 3) {
-      return parseFloat(cleaned.replace(/,/g, "")) || 0
-    } else {
-      return parseFloat(cleaned.replace(",", ".")) || 0
-    }
-  }
-  return parseFloat(cleaned) || 0
 }
 
 export const runtime = "nodejs"
